@@ -1,5 +1,5 @@
 from git import Repo
-import os, socket, sys, time, threading
+import os, socket, sys, time, threading, subprocess
 from werkzeug.serving import make_server
 from shutil import rmtree
 from json import load
@@ -46,25 +46,66 @@ class FlaskThread:
             self.running = False
         print(f"\r{self.app.name} Lab stopped.")
 
+def is_admin():
+    if os.name == 'nt':
+        try:
+            import ctypes
+            return ctypes.windll.shell32.IsUserAnAdmin()
+        except:
+            return False
+    else:
+        return os.getuid() == 0
 
-def check_host_file():
+def run_as_admin(func_name):
+    if os.name == 'nt':
+        try:
+            import ctypes
+            params = " ".join(sys.argv)
+            ctypes.windll.shell32.ShellExecuteW(
+                None, "runas", sys.executable, params, None, 1
+            )
+        except Exception as e:
+            print(f"Failed to gain administrator privileges: {e}")
+            sys.exit(1)
+    else:
+        try:
+            command = ["sudo", sys.executable, __file__, func_name]
+            subprocess.check_call(command)
+        except Exception as e:
+            print(f"Failed to gain root privileges: {e}")
+            sys.exit(1)
+
+def update_host_file():
+    if os.name == "posix":
+        host_path = "/etc/hosts"
+    elif os.name == "nt":
+        os.system("certutil -addstore Root \"rootCA.pem\"")
+        
+        host_path = "C:\\Windows\\System32\\drivers\\etc\\hosts"
+    else:
+        print("unknown OS. Mail on contact@iha089.org")
+    
+    with open(host_path, 'r') as ff:
+        data = ff.read()
+    
+    if not "127.0.0.1   iha089-labs.in" in data:
+        with open(host_path, 'a') as dd:
+            dd.write("127.0.0.1   iha089-labs.in")
+
+def check_for_host_path():
     if os.name == "posix":
         host_path = "/etc/hosts"
     elif os.name == "nt":
         host_path = "C:\\Windows\\System32\\drivers\\etc\\hosts"
-    else:
-        print("unknown os. Mail on contact@iha089.org")
-        sys.exit()
-
+    
     with open(host_path, 'r') as ff:
         data = ff.read()
     
-    if not "iha089-labs.in" in data:
-        print("add below line in "+host_path+" file")
-        print("127.0.0.1	iha089-labs.in")
-        sys.exit()
-
-
+    if "127.0.0.1   iha089-labs.in" in data:
+        return True
+    else:
+        return False
+        
 def check_ineternet_connection():
     s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     try:
@@ -119,7 +160,10 @@ def get_lab_info():
 
     to_path = os.getcwd()+'/'+dirname
     if os.path.isdir(to_path):
-        rmtree(to_path)
+        if os.name == "posix":
+            os.system("rm -rf iha089_lab_info")
+        elif os.name == "nt":
+            os.system("rmdir /s /q \"iha089_lab_info\"")
 
     os.mkdir(dirname)
 
@@ -254,11 +298,28 @@ def show_labs():
         else:
             print("Please choose correct option!")
             flag=True
+
+def perfrom_admin_task():
+    if len(sys.argv) > 1:
+        func_name = sys.argv[1]
+        if func_name == "update_host_file":
+            update_host_file()
+        else:
+            print(f"Unknown function: {func_name}")
+            sys.exit(1)
+    else:
+        if not is_admin():
+            run_as_admin("update_host_file")
+        else:
+            update_host_file()
         
+if __name__ == "__main__":
+    if not check_for_host_path:
+        perfrom_admin_task()
+        
+    if check_ineternet_connection():
+        get_lab_info()
 
-if check_ineternet_connection():
-    get_lab_info()
-
-get_mail_server()
-check_host_file()
-show_labs()
+    get_mail_server()
+    update_host_file()
+    show_labs()
