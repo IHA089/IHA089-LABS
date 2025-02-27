@@ -7,6 +7,7 @@ import importlib.util
 from flask import Flask, request, jsonify
 import ssl
 
+stop=False
 
 class FlaskThread:
     def __init__(self, app, host="127.0.0.1", port=5000, certfile=None, keyfile=None):
@@ -45,6 +46,8 @@ class FlaskThread:
             self.thread.join()
             self.running = False
         print(f"\r{self.app.name} Lab stopped.")
+        global stop
+        stop=True
 
 def is_admin():
     if os.name == 'nt':
@@ -142,7 +145,6 @@ def run_vulnerable_lab(file_path, app_name, u_port):
             keyfile="iha089-labs.in.key"
         )
         flask_thread.start()
-
     except Exception as e:
         print(f"Error: {e}")
 
@@ -189,23 +191,42 @@ def get_mail_server():
             print("An error occur: "+e)
             sys.exit()
 
-def check_lab_is_present(lab_url, cat_name, nname, mailserver):
+def check_lab_is_present(lab_url, cat_name, nname, mailserver, version, adf="Fetching"):
     global mail_server_addr
-    lab_path = os.getcwd()+"/"+cat_name+lab_url
-
+    lab_path = os.path.join(os.getcwd(), cat_name, lab_url)
     if not os.path.isdir(lab_path):
         os.mkdir(lab_path)
         try:
-            print(f"\rFetching {lab_url.replace('/','')} lab....", end="")
-            lab_git_url = "https://github.com/IHA089"+lab_url+".git"
+            print(f"\r{adf} {lab_url} lab....", end="")
+            lab_git_url = "https://github.com/IHA089/"+lab_url+".git"
             Repo.clone_from(lab_git_url, lab_path)
-            print(f"\rfetching success{' '*30}")
+            print(f"\r{adf} success{' '*30}")
         except Exception as e:
             print("An error occur: "+e)
             sys.exit()
     else:
-        pass
-    ff_path = lab_path+lab_url.replace('Lab','')+".py"
+        version_path = os.path.join(lab_path, "version")
+        try:
+            with open(version_path, 'r') as file:
+                data = file.read()
+            data = data.replace("\n", "")
+            if version != data:
+                if os.name == "posix":
+                    cmd = "rm -rf "+lab_path
+                elif os.name == "nt":
+                    cmd = "rmdir /s /q \""+lab_path+"\""
+                os.system(cmd)
+                check_lab_is_present(lab_url, cat_name, nname, mailserver, version, adf="Updating")
+        except FileNotFoundError:
+            if os.name == "posix":
+                cmd = "rm -rf "+lab_path
+            elif os.name == "nt":
+                cmd = "rmdir /s /q \""+lab_path+"\""
+            os.system(cmd)
+            check_lab_is_present(lab_url, cat_name, nname, mailserver, version, adf="Fetching")
+
+    py_path = lab_url.replace('Lab','.py')
+    ff_path = os.path.join(lab_path, py_path)
     
     if mail_server_addr == "":
         mail_app_name = "MailServerIHA089"
@@ -216,8 +237,7 @@ def check_lab_is_present(lab_url, cat_name, nname, mailserver):
     if mailserver == "yes":
         print("Access mail system::: "+mail_server_addr)
 
-    appName = lab_url.replace("/",'')
-    appName = appName.replace('Lab','')
+    appName = lab_url.replace('Lab','')
     run_vulnerable_lab(ff_path, app_name=appName, u_port=443)
     
     while True:
@@ -233,11 +253,13 @@ def each_info(lab_info, cat_name, nname, mailserver):
     lab_desc = lab_info['description']
     lab_url = lab_info['laburl']
     blog_url = lab_info['blogurl']
+    version = lab_info['version']
 
-    check_lab_is_present(lab_url, cat_name, nname, mailserver)
+    check_lab_is_present(lab_url, cat_name, nname, mailserver, version)
 
 def chech_main_lab_name(name):
-    lab_path = os.getcwd()+'/'+name
+    lab_path = os.path.join(os.getcwd(),name)
+    
     if not os.path.isdir(lab_path):
         os.mkdir(lab_path)
     
@@ -249,8 +271,8 @@ def show_labs():
     print("Available Lab Categories:")
     categories = list(data['labs'].keys())
     for idx, category in enumerate(categories, 1):
-        print(f"{idx}. {category}")
-    print("press `ctrl+c` for exit")
+        print(f"{idx}. >>>  {category}")
+    print("\npress `ctrl+c` for exit")
     
     flag=True
     while flag:
@@ -269,12 +291,16 @@ def show_labs():
             chech_main_lab_name(cat_name)
             sub_cat = list(data['labs'][selected_category]['labs'].keys())
 
+
             flag2=True
             while flag2:
-                print("0. go to back")
+                global stop
+                stop=False
+                print("0. >>>  go to back")
                 for idx, sub in enumerate(sub_cat, 1):
-                    print(f"{idx}. {sub}")
-                print("press `ctrl+c` for exit")
+                    name = data['labs'][selected_category]['labs'][sub]['labname']
+                    print(f"{idx}. >>>  {name}")
+                print("\npress `ctrl+c` for exit")
                 try:
                     nname= "\nIHA089-LABS/"+cat_name+"#>"
                     sub_choice = int(input(nname))
@@ -293,7 +319,8 @@ def show_labs():
                 if flag2 is False and sub_choice == 0:
                     show_labs()
                 else:
-                    print("Please choose correct option!")
+                    if not stop:
+                        print("Please choose correct option!")
                     flag2=True
         else:
             print("Please choose correct option!")
