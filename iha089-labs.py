@@ -341,12 +341,11 @@ def perfrom_admin_task():
             update_host_file()
         
 if __name__ == "__main__":
-    if not check_for_host_path:
+    if not check_for_host_path():
         perfrom_admin_task()
         
     if check_ineternet_connection():
         get_lab_info()
 
     get_mail_server()
-    update_host_file()
     show_labs()
