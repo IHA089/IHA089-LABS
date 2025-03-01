@@ -59,25 +59,6 @@ def is_admin():
     else:
         return os.getuid() == 0
 
-def run_as_admin(func_name):
-    if os.name == 'nt':
-        try:
-            import ctypes
-            params = " ".join(sys.argv)
-            ctypes.windll.shell32.ShellExecuteW(
-                None, "runas", sys.executable, params, None, 1
-            )
-        except Exception as e:
-            print(f"Failed to gain administrator privileges: {e}")
-            sys.exit(1)
-    else:
-        try:
-            command = ["sudo", sys.executable, __file__, func_name]
-            subprocess.check_call(command)
-        except Exception as e:
-            print(f"Failed to gain root privileges: {e}")
-            sys.exit(1)
-
 def update_host_file():
     if os.name == "posix":
         host_path = "/etc/hosts"
@@ -191,7 +172,7 @@ def get_mail_server():
             print("An error occur: "+e)
             sys.exit()
 
-def check_lab_is_present(lab_url, cat_name, nname, mailserver, version, adf="Fetching"):
+def check_lab_is_present(lab_url, cat_name, nname, mailserver, version, description, blog_url, adf="Fetching"):
     global mail_server_addr
     lab_path = os.path.join(os.getcwd(), cat_name, lab_url)
     if not os.path.isdir(lab_path):
@@ -216,14 +197,14 @@ def check_lab_is_present(lab_url, cat_name, nname, mailserver, version, adf="Fet
                 elif os.name == "nt":
                     cmd = "rmdir /s /q \""+lab_path+"\""
                 os.system(cmd)
-                check_lab_is_present(lab_url, cat_name, nname, mailserver, version, adf="Updating")
+                check_lab_is_present(lab_url, cat_name, nname, mailserver, version, description, blog_url, adf="Updating")
         except FileNotFoundError:
             if os.name == "posix":
                 cmd = "rm -rf "+lab_path
             elif os.name == "nt":
                 cmd = "rmdir /s /q \""+lab_path+"\""
             os.system(cmd)
-            check_lab_is_present(lab_url, cat_name, nname, mailserver, version, adf="Fetching")
+            check_lab_is_present(lab_url, cat_name, nname, mailserver, version, description, blog_url, adf="Fetching")
 
     py_path = lab_url.replace('Lab','.py')
     ff_path = os.path.join(lab_path, py_path)
@@ -239,6 +220,10 @@ def check_lab_is_present(lab_url, cat_name, nname, mailserver, version, adf="Fet
 
     appName = lab_url.replace('Lab','')
     run_vulnerable_lab(ff_path, app_name=appName, u_port=443)
+
+    print("\n")
+    print(description)
+    print("Hint: "+blog_url)
     
     while True:
         user_input = input(nname).strip().lower()
@@ -255,7 +240,7 @@ def each_info(lab_info, cat_name, nname, mailserver):
     blog_url = lab_info['blogurl']
     version = lab_info['version']
 
-    check_lab_is_present(lab_url, cat_name, nname, mailserver, version)
+    check_lab_is_present(lab_url, cat_name, nname, mailserver, version, lab_desc, blog_url)
 
 def chech_main_lab_name(name):
     lab_path = os.path.join(os.getcwd(),name)
@@ -325,24 +310,14 @@ def show_labs():
         else:
             print("Please choose correct option!")
             flag=True
-
-def perfrom_admin_task():
-    if len(sys.argv) > 1:
-        func_name = sys.argv[1]
-        if func_name == "update_host_file":
-            update_host_file()
-        else:
-            print(f"Unknown function: {func_name}")
-            sys.exit(1)
-    else:
-        if not is_admin():
-            run_as_admin("update_host_file")
-        else:
-            update_host_file()
         
 if __name__ == "__main__":
+    if not is_admin():
+        print("Please run this script with root permission")
+        sys.exit()
+
     if not check_for_host_path():
-        perfrom_admin_task()
+        update_host_file()
         
     if check_ineternet_connection():
         get_lab_info()
