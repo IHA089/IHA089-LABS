@@ -34,7 +34,7 @@ class FlaskThread:
     def start(self):
         if self.port==443:
             print(f"{self.app.name} Lab is running...")
-            print("Access your lab ::: https://iha089-labs.in")
+            print("Access vulnerable lab ::: https://iha089-labs.in")
             print("Type 'close' to stop.")
         self.running = True
         self.thread.start()
