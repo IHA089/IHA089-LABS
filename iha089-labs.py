@@ -101,7 +101,8 @@ def check_ineternet_connection():
         return False
 
 flask_thread = None
-check_module.install_each_module()
+if not check_module.install_each_module():
+    sys.exit(1)
 
 mail_server_addr=""
 
