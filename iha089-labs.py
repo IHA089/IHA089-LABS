@@ -5,6 +5,7 @@ from shutil import rmtree
 from json import load
 import importlib.util
 from flask import Flask, request, jsonify
+import check_module
 import ssl
 
 stop=False
@@ -100,6 +101,7 @@ def check_ineternet_connection():
         return False
 
 flask_thread = None
+check_module.install_each_module()
 
 mail_server_addr=""
 
