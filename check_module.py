@@ -47,7 +47,7 @@ def install_each_module():
             print(f"Module {module} is missing. Attempting to install...")
             success = install_module(module, package_name)
             if success:
-                    print(f"{module:<15} : ✓ Successfully installed")
+                print(f"{module:<15} : ✓ Successfully installed")
             else:
                 print(f"{module:<15} : ✗ Installation failed")
                 print(f"{module:15} : Please install it manually")
