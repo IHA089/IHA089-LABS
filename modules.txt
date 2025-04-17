@@ -1,0 +1,7 @@
+GitPython
+werkzeug
+flask
+requests
+flask-cors
+jwt
+pyjwt
