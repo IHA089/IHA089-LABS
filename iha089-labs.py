@@ -5,7 +5,6 @@ from shutil import rmtree
 from json import load
 import importlib.util
 from flask import Flask, request, jsonify
-import check_module
 import ssl
 
 stop=False
@@ -101,8 +100,6 @@ def check_ineternet_connection():
         return False
 
 flask_thread = None
-if not check_module.install_each_module():
-    sys.exit(1)
 
 mail_server_addr=""
 
@@ -314,16 +311,74 @@ def show_labs():
             print("Please choose correct option!")
             flag=True
         
+def get_venv_python(venv_path="venv"):
+    if not os.path.exists(venv_path):
+        print(f"Virtual environment at {venv_path} does not exist.")
+        sys.exit(1)
+    
+    if sys.platform == "win32":
+        python_path = os.path.join(venv_path, "Scripts", "python.exe")
+    else:
+        python_path = os.path.join(venv_path, "bin", "python")
+    
+    if not os.path.exists(python_path):
+        print(f"Python interpreter not found in virtual environment at {python_path}.")
+        sys.exit(1)
+    
+    return python_path
+
+def check_is_venv_file():
+    is_venv_file = "is_venv"
+    target_line = "OnEiEbLvOgD"
+    
+    if not os.path.isfile(is_venv_file):
+        return False
+    
+    try:
+        with open(is_venv_file, "r") as f:
+            content = f.read().splitlines()
+            if target_line in content:
+                return True
+            else:
+                print(f"'{target_line}' not found in '{is_venv_file}'.")
+                return False
+    except Exception as e:
+        print(f"Error reading '{is_venv_file}': {e}")
+        return False
+
+def run_with_venv(venv_path="venv"):
+    try:
+        python_path = get_venv_python(venv_path)
+        cmd = python_path+" "+sys.argv[0]
+        os.system(cmd)
+    except Exception as e:
+        print(e)
+       
 if __name__ == "__main__":
     if not is_admin():
         print("Please run this script with root permission")
         sys.exit()
-
-    if not check_for_host_path():
-        update_host_file()
+    if check_is_venv_file():
+        if hasattr(sys, "real_prefix") or (hasattr(sys, "base_prefix") and sys.base_prefix != sys.prefix):
+            if not check_for_host_path():
+                update_host_file()
         
-    if check_ineternet_connection():
-        get_lab_info()
+            if check_internet_connection():
+                print()
+                #get_lab_info()
 
-    get_mail_server()
-    show_labs()
+            get_mail_server()
+            show_labs()
+        else:
+            run_with_venv()
+    else:
+        print("we are here bro")
+        if not check_for_host_path():
+            update_host_file()
+
+        if check_internet_connection():
+            print()
+            #get_lab_info()
+
+        get_mail_server()
+        show_labs()
