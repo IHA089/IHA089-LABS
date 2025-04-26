@@ -42,7 +42,8 @@ def install_module(module_name, venv_path="venv"):
         write_data.close()
         print(f"Installing '{module_name}' in virtual environment at {venv_path}...")
         subprocess.check_call([pip_path, "install", module_name])
-        print(f"Successfully installed '{module_name}' in virtual environment.")        return True
+        print(f"Successfully installed '{module_name}' in virtual environment.")        
+        return True
     except subprocess.CalledProcessError as e:
         error_output = e.stderr if e.stderr else e.stdout if e.stdout else ""
         print(f"Failed to install '{module_name}' in virtual environment: {error_output}")
