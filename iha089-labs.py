@@ -365,20 +365,19 @@ if __name__ == "__main__":
         
             if check_internet_connection():
                 print()
-                #get_lab_info()
+                get_lab_info()
 
             get_mail_server()
             show_labs()
         else:
             run_with_venv()
     else:
-        print("we are here bro")
         if not check_for_host_path():
             update_host_file()
 
         if check_internet_connection():
             print()
-            #get_lab_info()
+            get_lab_info()
 
         get_mail_server()
         show_labs()
