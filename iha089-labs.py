@@ -90,7 +90,7 @@ def check_for_host_path():
     else:
         return False
         
-def check_ineternet_connection():
+def check_internet_connection():
     s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     try:
         s.connect(("8.8.8.8",80))
