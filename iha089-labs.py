@@ -1,53 +1,42 @@
 from git import Repo
-import os, socket, sys, time, threading, subprocess
-from werkzeug.serving import make_server
-from shutil import rmtree
+import os, socket, sys, threading, importlib.util
 from json import load
-import importlib.util
-from flask import Flask, request, jsonify
+from flask import Flask
 import ssl
+from werkzeug.serving import run_simple
 
-stop=False
+from IHA089_Mail.MailServerIHA089 import MailServerIHA089  
 
-class FlaskThread:
-    def __init__(self, app, host="127.0.0.1", port=5000, certfile=None, keyfile=None):
-        self.app = app
-        self.host = host
-        self.port = port
-        self.certfile = certfile
-        self.keyfile = keyfile
+stop = False
+current_lab = None
 
-        self.ssl_context = None
-        if certfile and keyfile:
-            self.ssl_context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
-            self.ssl_context.load_cert_chain(certfile=certfile, keyfile=keyfile)
+def application(environ, start_response):
+    global current_lab
+    host = environ.get("HTTP_HOST", "").split(":")[0]
+    path = environ.get("PATH_INFO", "")
 
-        self.server = make_server(host, port, app)
+    if host == "iha089-labs.in" and current_lab:
+        if path.startswith("/static/"):
+            return current_lab.wsgi_app(environ, start_response)
 
-        if self.ssl_context:
-            self.server.socket = self.ssl_context.wrap_socket(self.server.socket, server_side=True)
+    if host == "mail.iha089-labs.in":
+        if path.startswith("/static/"):
+            return MailServerIHA089.wsgi_app(environ, start_response)
 
-        self.thread = threading.Thread(target=self.server.serve_forever)
-        self.thread.daemon = True
-        self.running = False
+    if path == "/favicon.ico":
+        if host == "iha089-labs.in" and current_lab:
+            return current_lab.wsgi_app(environ, start_response)
+        elif host == "mail.iha089-labs.in":
+            return MailServerIHA089.wsgi_app(environ, start_response)
 
-    def start(self):
-        if self.port==443:
-            print(f"{self.app.name} Lab is running...")
-            print("Access vulnerable lab ::: https://iha089-labs.in")
-            print("Type 'close' to stop.")
-        self.running = True
-        self.thread.start()
+    if host == "iha089-labs.in" and current_lab:
+        return current_lab.wsgi_app(environ, start_response)
+    elif host == "mail.iha089-labs.in":
+        return MailServerIHA089.wsgi_app(environ, start_response)
 
-    def stop(self):
-        print(f"\rStopping {self.app.name} Lab...", end="")
-        if self.running:
-            self.server.shutdown()
-            self.thread.join()
-            self.running = False
-        print(f"\r{self.app.name} Lab stopped.")
-        global stop
-        stop=True
+    resp = b"No lab is running. Select one from the menu."
+    start_response("200 OK", [("Content-Type", "text/plain"), ("Content-Length", str(len(resp)))])
+    return [resp]
 
 def is_admin():
     if os.name == 'nt':
@@ -64,32 +53,37 @@ def update_host_file():
         host_path = "/etc/hosts"
     elif os.name == "nt":
         os.system("certutil -addstore Root \"rootCA.pem\"")
-        
         host_path = "C:\\Windows\\System32\\drivers\\etc\\hosts"
     else:
         print("unknown OS. Mail on contact@iha089.org")
+        return
     
     with open(host_path, 'r') as ff:
         data = ff.read()
     
-    if not "127.0.0.1   iha089-labs.in" in data:
+    if "127.0.0.1   iha089-labs.in" not in data:
         with open(host_path, 'a') as dd:
-            dd.write("127.0.0.1   iha089-labs.in")
+            dd.write("\n127.0.0.1   iha089-labs.in")
+    if "127.0.0.1   mail.iha089-labs.in" not in data:
+        with open(host_path, 'a') as dd:
+            dd.write("\n127.0.0.1   mail.iha089-labs.in")
 
 def check_for_host_path():
     if os.name == "posix":
         host_path = "/etc/hosts"
     elif os.name == "nt":
         host_path = "C:\\Windows\\System32\\drivers\\etc\\hosts"
+    else:
+        return False
     
     with open(host_path, 'r') as ff:
         data = ff.read()
     
-    if "127.0.0.1   iha089-labs.in" in data:
-        return True
-    else:
-        return False
-        
+    return (
+        "127.0.0.1   iha089-labs.in" in data
+        and "127.0.0.1   mail.iha089-labs.in" in data
+    )
+
 def check_internet_connection():
     s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     try:
@@ -99,14 +93,10 @@ def check_internet_connection():
         print("No internet connection")
         return False
 
-flask_thread = None
-
-mail_server_addr=""
-
-
-def run_vulnerable_lab(file_path, app_name, u_port):
-    global flask_thread
+def run_vulnerable_lab(file_path, app_name):
+    global current_lab
     try:
+        import importlib.util
         spec = importlib.util.spec_from_file_location(app_name, file_path)
         module = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(module)
@@ -114,34 +104,23 @@ def run_vulnerable_lab(file_path, app_name, u_port):
 
         if not isinstance(flask_app, Flask):
             raise ValueError(f"The object '{app_name}' is not a Flask instance.")
+
         app_dir = os.path.dirname(file_path)
         flask_app.template_folder = os.path.join(app_dir, "templates")
         flask_app.static_folder = os.path.join(app_dir, "static")
 
-        flask_thread = FlaskThread(
-            flask_app,
-            host="127.0.0.1",
-            port=u_port,
-            certfile="iha089-labs.in.crt",
-            keyfile="iha089-labs.in.key"
-        )
-        flask_thread.start()
+        current_lab = flask_app
+        print(f"\n{app_name} is now active at https://iha089-labs.in")
+        print(f"\nMail Service is active at https://mail.iha089-labs.in")
+
     except Exception as e:
         print(f"Error: {e}")
 
-def stop_flask_app():
-    global flask_thread
-    if flask_thread:
-        flask_thread.stop()
-        flask_thread = None
-    else:
-        print("No Vulnerable Lab is currently running.")
-    
 def get_lab_info():
     lab_info_url = "https://github.com/IHA089/iha089_lab_info.git"
     dirname="iha089_lab_info"
 
-    to_path = os.getcwd()+'/'+dirname
+    to_path = os.path.join(os.getcwd(), dirname)
     if os.path.isdir(to_path):
         if os.name == "posix":
             os.system("rm -rf iha089_lab_info")
@@ -155,11 +134,11 @@ def get_lab_info():
         Repo.clone_from(lab_info_url, to_path)
         print(f"\rfetch success{' '*20}")
     except Exception as e:
-        print("An error occur: "+e)
+        print("An error occur: "+str(e))
 
 def get_mail_server():
     url = "https://github.com/IHA089/IHA089-Mail.git"
-    dirname = "IHA089-Mail"
+    dirname = "IHA089_Mail"
     dir_path = os.getcwd()+'/'+dirname
 
     if not os.path.isdir(dir_path):
@@ -173,7 +152,6 @@ def get_mail_server():
             sys.exit()
 
 def check_lab_is_present(lab_url, cat_name, nname, mailserver, version, description, blog_url, adf="Fetching"):
-    global mail_server_addr
     lab_path = os.path.join(os.getcwd(), cat_name, lab_url)
     if not os.path.isdir(lab_path):
         os.mkdir(lab_path)
@@ -183,14 +161,13 @@ def check_lab_is_present(lab_url, cat_name, nname, mailserver, version, descript
             Repo.clone_from(lab_git_url, lab_path)
             print(f"\r{adf} success{' '*30}")
         except Exception as e:
-            print("An error occur: "+e)
+            print("An error occur: "+str(e))
             sys.exit()
     else:
         version_path = os.path.join(lab_path, "version")
         try:
             with open(version_path, 'r') as file:
-                data = file.read()
-            data = data.replace("\n", "")
+                data = file.read().strip()
             if version != data:
                 if os.name == "posix":
                     cmd = "rm -rf "+lab_path
@@ -208,18 +185,9 @@ def check_lab_is_present(lab_url, cat_name, nname, mailserver, version, descript
 
     py_path = lab_url.replace('Lab','.py')
     ff_path = os.path.join(lab_path, py_path)
-    
-    if mail_server_addr == "":
-        mail_app_name = "MailServerIHA089"
-        mail_file_path = os.getcwd()+"/IHA089-Mail/MailServerIHA089.py"
-        run_vulnerable_lab(mail_file_path, app_name=mail_app_name, u_port=7089)
-        mail_server_addr = "https://127.0.0.1:7089"
-
-    if mailserver == "yes":
-        print("Access mail system::: "+mail_server_addr)
 
     appName = lab_url.replace('Lab','')
-    run_vulnerable_lab(ff_path, app_name=appName, u_port=443)
+    run_vulnerable_lab(ff_path, app_name=appName)
 
     print("\n")
     print(description)
@@ -228,26 +196,25 @@ def check_lab_is_present(lab_url, cat_name, nname, mailserver, version, descript
     while True:
         user_input = input(nname).strip().lower()
         if user_input in ('stop', 'close'):
-            stop_flask_app()
+            print("Lab stopped.")
+            global current_lab
+            current_lab = None
             break
         else:
             print("Unknown command. Type 'stop' or 'close' to stop the lab.")
-
 
 def each_info(lab_info, cat_name, nname, mailserver):
     lab_desc = lab_info['description']
     lab_url = lab_info['laburl']
     blog_url = lab_info['blogurl']
     version = lab_info['version']
-
     check_lab_is_present(lab_url, cat_name, nname, mailserver, version, lab_desc, blog_url)
 
 def chech_main_lab_name(name):
     lab_path = os.path.join(os.getcwd(),name)
-    
     if not os.path.isdir(lab_path):
         os.mkdir(lab_path)
-    
+
 def show_labs():
     json_path = "iha089_lab_info/manage_labs.json"
     with open(json_path, "r") as file:
@@ -276,11 +243,8 @@ def show_labs():
             chech_main_lab_name(cat_name)
             sub_cat = list(data['labs'][selected_category]['labs'].keys())
 
-
             flag2=True
             while flag2:
-                global stop
-                stop=False
                 print("0. >>>  go to back")
                 for idx, sub in enumerate(sub_cat, 1):
                     name = data['labs'][selected_category]['labs'][sub]['labname']
@@ -304,13 +268,12 @@ def show_labs():
                 if flag2 is False and sub_choice == 0:
                     show_labs()
                 else:
-                    if not stop:
-                        print("Please choose correct option!")
+                    print("Please choose correct option!")
                     flag2=True
         else:
             print("Please choose correct option!")
             flag=True
-        
+
 def get_venv_python(venv_path="venv"):
     if not os.path.exists(venv_path):
         print(f"Virtual environment at {venv_path} does not exist.")
@@ -327,24 +290,6 @@ def get_venv_python(venv_path="venv"):
     
     return python_path
 
-def check_is_venv_file():
-    is_venv_file = "is_venv"
-    target_line = "OnEiEbLvOgD"
-    
-    if not os.path.isfile(is_venv_file):
-        return False
-    
-    try:
-        with open(is_venv_file, "r") as f:
-            content = f.read().splitlines()
-            if target_line in content:
-                return True
-            else:
-                print(f"'{target_line}' not found in '{is_venv_file}'.")
-                return False
-    except Exception as e:
-        print(f"Error reading '{is_venv_file}': {e}")
-        return False
 
 def run_with_venv(venv_path="venv"):
     try:
@@ -353,31 +298,35 @@ def run_with_venv(venv_path="venv"):
         os.system(cmd)
     except Exception as e:
         print(e)
-       
+
+
+
 if __name__ == "__main__":
+    if not os.path.isfile("check_venv"):
+        with open("check_venv", "w") as f:
+            f.write("0")
+        run_with_venv()
+        sys.exit()
+    else:
+        os.system("del check_venv") if os.name == "nt" else os.system("rm -rf check_venv")
+        
     if not is_admin():
         print("Please run this script with root permission")
         sys.exit()
-    if check_is_venv_file():
-        if hasattr(sys, "real_prefix") or (hasattr(sys, "base_prefix") and sys.base_prefix != sys.prefix):
-            if not check_for_host_path():
-                update_host_file()
-        
-            if check_internet_connection():
-                print()
-                get_lab_info()
 
-            get_mail_server()
-            show_labs()
-        else:
-            run_with_venv()
-    else:
-        if not check_for_host_path():
-            update_host_file()
+    if not check_for_host_path():
+        update_host_file()
 
-        if check_internet_connection():
-            print()
-            get_lab_info()
+    if check_internet_connection():
+        print()
+        get_lab_info()
+    
+    get_mail_server()
 
-        get_mail_server()
-        show_labs()
+    threading.Thread(target=show_labs, daemon=True).start()
+
+    context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+    context.load_cert_chain(certfile="iha089-labs.crt", keyfile="iha089-labs.key")
+
+    run_simple("127.0.0.1", 443, application, ssl_context=context)
+
