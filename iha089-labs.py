@@ -1,44 +1,56 @@
 from git import Repo
-import os, socket, sys, threading, importlib.util
+import os, socket, sys, threading, multiprocessing, time
 from json import load
 from flask import Flask
 import ssl
 from werkzeug.serving import run_simple
-from sec_bas import install_module
 
-from IHA089_Mail.MailServerIHA089 import MailServerIHA089 
-from IHA089_Mail.smtp_server import run_server
-
-stop = False
 current_lab = None
+mail_enabled = True
+smtp_proc = None
+MailServerIHA089 = None
+run_server = None
+
+def get_venv_python(venv_path="venv"):
+    if not os.path.exists(venv_path):
+        print(f"Virtual environment at {venv_path} does not exist.")
+        sys.exit(1)
+    
+    if sys.platform == "win32":
+        python_path = os.path.join(venv_path, "Scripts", "python.exe")
+    else:
+        python_path = os.path.join(venv_path, "bin", "python")
+    
+    if not os.path.exists(python_path):
+        print(f"Python interpreter not found in virtual environment at {python_path}.")
+        sys.exit(1)
+    
+    return python_path
+
+
+def run_with_venv(venv_path="venv"):
+    try:
+        python_path = get_venv_python(venv_path)
+        os.execv(python_path, [python_path] + [os.path.abspath(sys.argv[0])] + sys.argv[1:])
+    except Exception as e:
+        print("Error re-executing in venv:", e)
+        sys.exit(1)
+
 
 def application(environ, start_response):
-    global current_lab
+    global current_lab, mail_enabled, MailServerIHA089
+
     host = environ.get("HTTP_HOST", "").split(":")[0]
-    path = environ.get("PATH_INFO", "")
-
-    if host == "iha089-labs.in" and current_lab:
-        if path.startswith("/static/"):
-            return current_lab.wsgi_app(environ, start_response)
-
-    if host == "mail.iha089-labs.in":
-        if path.startswith("/static/"):
-            return MailServerIHA089.wsgi_app(environ, start_response)
-
-    if path == "/favicon.ico":
-        if host == "iha089-labs.in" and current_lab:
-            return current_lab.wsgi_app(environ, start_response)
-        elif host == "mail.iha089-labs.in":
-            return MailServerIHA089.wsgi_app(environ, start_response)
 
     if host == "iha089-labs.in" and current_lab:
         return current_lab.wsgi_app(environ, start_response)
-    elif host == "mail.iha089-labs.in":
+    elif host == "mail.iha089-labs.in" and mail_enabled and MailServerIHA089:
         return MailServerIHA089.wsgi_app(environ, start_response)
 
     resp = b"No lab is running. Select one from the menu."
     start_response("200 OK", [("Content-Type", "text/plain"), ("Content-Length", str(len(resp)))])
     return [resp]
+
 
 def is_admin():
     if os.name == 'nt':
@@ -57,7 +69,7 @@ def update_host_file():
         os.system("certutil -addstore Root \"rootCA.pem\"")
         host_path = "C:\\Windows\\System32\\drivers\\etc\\hosts"
     else:
-        print("unknown OS. Mail on contact@iha089.org")
+        print("Unknown OS")
         return
     
     with open(host_path, 'r') as ff:
@@ -94,13 +106,10 @@ def check_internet_connection():
     except OSError:
         print("No internet connection")
         return False
-        
-        
+
+
 def run_vulnerable_lab(file_path, app_name):
     global current_lab
-    module_path = file_path+"requirements.txt"
-    if os.path.isfile(module_path):
-        load_module(module_path)
     try:
         import importlib.util
         spec = importlib.util.spec_from_file_location(app_name, file_path)
@@ -120,7 +129,7 @@ def run_vulnerable_lab(file_path, app_name):
         print(f"\nMail Service is active at https://mail.iha089-labs.in")
 
     except Exception as e:
-        print(f"Error: {e}")
+        print(f"Error running lab: {e}")
 
 def get_lab_info():
     lab_info_url = "https://github.com/IHA089/iha089_lab_info.git"
@@ -136,11 +145,11 @@ def get_lab_info():
     os.mkdir(dirname)
 
     try:
-        print(f"\rFetch all available labs...", end="")
+        print(f"\rFetching all available labs...", end="")
         Repo.clone_from(lab_info_url, to_path)
         print(f"\rfetch success{' '*20}")
     except Exception as e:
-        print("An error occur: "+str(e))
+        print("Error fetching labs: "+str(e))
 
 def check_lab_is_present(lab_url, cat_name, nname, mailserver, version, description, blog_url, adf="Fetching"):
     lab_path = os.path.join(os.getcwd(), cat_name, lab_url)
@@ -161,17 +170,15 @@ def check_lab_is_present(lab_url, cat_name, nname, mailserver, version, descript
                 data = file.read().strip()
             if version != data:
                 if os.name == "posix":
-                    cmd = "rm -rf "+lab_path
+                    os.system("rm -rf "+lab_path)
                 elif os.name == "nt":
-                    cmd = "rmdir /s /q \""+lab_path+"\""
-                os.system(cmd)
+                    os.system("rmdir /s /q \""+lab_path+"\"")
                 check_lab_is_present(lab_url, cat_name, nname, mailserver, version, description, blog_url, adf="Updating")
         except FileNotFoundError:
             if os.name == "posix":
-                cmd = "rm -rf "+lab_path
+                os.system("rm -rf "+lab_path)
             elif os.name == "nt":
-                cmd = "rmdir /s /q \""+lab_path+"\""
-            os.system(cmd)
+                os.system("rmdir /s /q \""+lab_path+"\"")
             check_lab_is_present(lab_url, cat_name, nname, mailserver, version, description, blog_url, adf="Fetching")
 
     py_path = lab_url.replace('Lab','.py')
@@ -193,6 +200,7 @@ def check_lab_is_present(lab_url, cat_name, nname, mailserver, version, descript
             break
         else:
             print("Unknown command. Type 'stop' or 'close' to stop the lab.")
+
 
 def each_info(lab_info, cat_name, nname, mailserver):
     lab_desc = lab_info['description']
@@ -265,32 +273,16 @@ def show_labs():
             print("Please choose correct option!")
             flag=True
 
-def get_venv_python(venv_path="venv"):
-    if not os.path.exists(venv_path):
-        print(f"Virtual environment at {venv_path} does not exist.")
-        sys.exit(1)
-    
-    if sys.platform == "win32":
-        python_path = os.path.join(venv_path, "Scripts", "python.exe")
-    else:
-        python_path = os.path.join(venv_path, "bin", "python")
-    
-    if not os.path.exists(python_path):
-        print(f"Python interpreter not found in virtual environment at {python_path}.")
-        sys.exit(1)
-    
-    return python_path
-
-
-def run_with_venv(venv_path="venv"):
-    try:
-        python_path = get_venv_python(venv_path)
-        cmd = python_path+" "+sys.argv[0]
-        os.system(cmd)
-    except Exception as e:
-        print(e)
-
-
+def start_smtp_process():
+    global smtp_proc, mail_enabled, run_server
+    if smtp_proc and smtp_proc.is_alive():
+        print("SMTP already running.")
+        mail_enabled = True
+        return
+    smtp_proc = multiprocessing.Process(target=run_server, daemon=True)
+    smtp_proc.start()
+    time.sleep(0.5)
+    mail_enabled = True
 
 if __name__ == "__main__":
     if not os.path.isfile("check_venv"):
@@ -300,7 +292,10 @@ if __name__ == "__main__":
         sys.exit()
     else:
         os.system("del check_venv") if os.name == "nt" else os.system("rm -rf check_venv")
-        
+    
+    from IHA089_Mail.MailServerIHA089 import MailServerIHA089
+    from IHA089_Mail.smtp_server import run_server
+
     if not is_admin():
         print("Please run this script with root permission")
         sys.exit()
@@ -312,7 +307,9 @@ if __name__ == "__main__":
         print()
         get_lab_info()
 
-    threading.Thread(target=run_server, daemon=True).start()
+    start_smtp_process()
+    mail_enabled = True
+
     threading.Thread(target=show_labs, daemon=True).start()
 
     context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
