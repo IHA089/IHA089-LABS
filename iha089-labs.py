@@ -4,8 +4,10 @@ from json import load
 from flask import Flask
 import ssl
 from werkzeug.serving import run_simple
+from sec_bas import install_module
 
-from IHA089_Mail.MailServerIHA089 import MailServerIHA089  
+from IHA089_Mail.MailServerIHA089 import MailServerIHA089 
+from IHA089_Mail.smtp_server import run_server
 
 stop = False
 current_lab = None
@@ -92,9 +94,13 @@ def check_internet_connection():
     except OSError:
         print("No internet connection")
         return False
-
+        
+        
 def run_vulnerable_lab(file_path, app_name):
     global current_lab
+    module_path = file_path+"requirements.txt"
+    if os.path.isfile(module_path):
+        load_module(module_path)
     try:
         import importlib.util
         spec = importlib.util.spec_from_file_location(app_name, file_path)
@@ -323,10 +329,10 @@ if __name__ == "__main__":
     
     get_mail_server()
 
+    threading.Thread(target=run_server, daemon=True).start()
     threading.Thread(target=show_labs, daemon=True).start()
 
     context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
     context.load_cert_chain(certfile="iha089-labs.crt", keyfile="iha089-labs.key")
 
     run_simple("127.0.0.1", 443, application, ssl_context=context)
-
