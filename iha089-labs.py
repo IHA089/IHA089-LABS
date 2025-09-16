@@ -288,7 +288,7 @@ if __name__ == "__main__":
     if not os.path.isfile("check_venv"):
         with open("check_venv", "w") as f:
             f.write("0")
-        run_with_venv()
+        run_with_venv("IHA089_Labs_venv")
         sys.exit()
     else:
         os.system("del check_venv") if os.name == "nt" else os.system("rm -rf check_venv")
