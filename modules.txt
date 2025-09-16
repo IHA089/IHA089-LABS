@@ -5,3 +5,4 @@ requests
 flask-cors
 jwt
 pyjwt
+aiosmtpd
