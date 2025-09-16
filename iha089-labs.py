@@ -142,21 +142,6 @@ def get_lab_info():
     except Exception as e:
         print("An error occur: "+str(e))
 
-def get_mail_server():
-    url = "https://github.com/IHA089/IHA089-Mail.git"
-    dirname = "IHA089_Mail"
-    dir_path = os.getcwd()+'/'+dirname
-
-    if not os.path.isdir(dir_path):
-        os.mkdir(dir_path)
-        try:
-            print(f"\rGetting mail server files...", end="")
-            Repo.clone_from(url, dir_path)
-            print(f"\rsuccess{' '*40}")
-        except Exception as e:
-            print("An error occur: "+e)
-            sys.exit()
-
 def check_lab_is_present(lab_url, cat_name, nname, mailserver, version, description, blog_url, adf="Fetching"):
     lab_path = os.path.join(os.getcwd(), cat_name, lab_url)
     if not os.path.isdir(lab_path):
@@ -326,8 +311,6 @@ if __name__ == "__main__":
     if check_internet_connection():
         print()
         get_lab_info()
-    
-    get_mail_server()
 
     threading.Thread(target=run_server, daemon=True).start()
     threading.Thread(target=show_labs, daemon=True).start()
