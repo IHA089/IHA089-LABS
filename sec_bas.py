@@ -75,7 +75,7 @@ def load_module(module_file_path):
         name = name.strip()
         if not name:
             continue
-        success = install_module(name)
+        success = install_module(name, "IHA089_Labs_venv")
         if not success:
             sys.exit(1)
 
