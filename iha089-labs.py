@@ -4,6 +4,7 @@ from json import load
 from flask import Flask
 import ssl
 from werkzeug.serving import run_simple
+from sec_bas import load_module
 
 current_lab = None
 mail_enabled = True
@@ -185,6 +186,11 @@ def check_lab_is_present(lab_url, cat_name, nname, mailserver, version, descript
     ff_path = os.path.join(lab_path, py_path)
 
     appName = lab_url.replace('Lab','')
+    try:
+        module_path = os.path.join(lab_path, "modules.txt")
+        load_module(module_path)
+    except Exception as e:
+        pass
     run_vulnerable_lab(ff_path, app_name=appName)
 
     print("\n")
@@ -305,7 +311,7 @@ if __name__ == "__main__":
 
     if check_internet_connection():
         print()
-        get_lab_info()
+        #get_lab_info()
 
     start_smtp_process()
     mail_enabled = True
