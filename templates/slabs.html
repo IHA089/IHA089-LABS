@@ -34,7 +34,7 @@
         <span class="lab-domain">{{ domain }}.iha089-labs.in</span>
     {% endfor %}
     <div class="lab-quotes">
-        <p>The code is daring you to quit. Prove it wrong.</p>
+        <p id="quote"></p>
     </div>
 </section>
 <div id="popup-box" class="popup-box">
@@ -59,140 +59,184 @@
 </div>
 
 <script>
-class TerminalTypewriter {
-    constructor(element, toRotate, period) {
-        this.toRotate = toRotate;
-        this.el = element;
-        this.loopNum = 0;
-        this.period = parseInt(period, 10) || 2000;
-        this.txt = '';
-        this.isDeleting = false;
-        this.tick();
-    }
-    tick() {
-        let i = this.loopNum % this.toRotate.length;
-        let fullTxt = this.toRotate[i];
-
-        if (this.isDeleting) {
-            this.txt = fullTxt.substring(0, this.txt.length - 1);
-        } else {
-            this.txt = fullTxt.substring(0, this.txt.length + 1);
-        }
-
-        this.el.innerHTML = this.txt;
-
-        let delta = 100 - Math.random() * 50;
-        if (this.isDeleting) { delta /= 2; }
-
-        if (!this.isDeleting && this.txt === fullTxt) {
-            delta = this.period;
-            this.isDeleting = true;
-        } else if (this.isDeleting && this.txt === '') {
-            this.isDeleting = false;
-            this.loopNum++;
-            delta = 500;
-        }
-
-        setTimeout(() => this.tick(), delta);
-    }
-}
-
 document.addEventListener("DOMContentLoaded", function () {
+    class TerminalTypewriter {
+        constructor(element, toRotate, period) {
+            this.toRotate = toRotate;
+            this.el = element;
+            this.loopNum = 0;
+            this.period = parseInt(period, 10) || 2000;
+            this.txt = '';
+            this.isDeleting = false;
+            this.tick();
+        }
+        tick() {
+            let i = this.loopNum % this.toRotate.length;
+            let fullTxt = this.toRotate[i];
+
+            if (this.isDeleting) {
+                this.txt = fullTxt.substring(0, this.txt.length - 1);
+            } else {
+                this.txt = fullTxt.substring(0, this.txt.length + 1);
+            }
+
+            this.el.innerHTML = this.txt;
+
+            let delta = 100 - Math.random() * 50;
+            if (this.isDeleting) { delta /= 2; }
+
+            if (!this.isDeleting && this.txt === fullTxt) {
+                delta = this.period;
+                this.isDeleting = true;
+            } else if (this.isDeleting && this.txt === '') {
+                this.isDeleting = false;
+                this.loopNum++;
+                delta = 500;
+            }
+
+            setTimeout(() => this.tick(), delta);
+        }
+    }
+
     const toRotate = ["Nmap","Amass","Recon-ng","theHarvester","Sublist3r","dnsenum","dnsrecon","DNSDumpster","Shodan-cli","Maltego","Gobuster","Dirbuster","ffuf","Nikto","Wapiti","w3af","WhatWeb","WPScan","Burp Suite","Mitmproxy","sqlmap","Nuclei","Tor","Netcat","Curl","Wget","Sqlninja","Commix","XSSer","Wfuzz","Dirsearch","XSStrike","SSRFmap"];
     const typewriterElement = document.getElementById("typewriter");
     if (typewriterElement) {
         new TerminalTypewriter(typewriterElement, toRotate, 2000);
     }
+
     const popupBox = document.getElementById("popup-box");
     const hidePopupButton = document.getElementById("hide-popup");
     const showPopupButton = document.getElementById("show-popup");
 
-    hidePopupButton.addEventListener("click", () => {
-        popupBox.classList.add("hidden");
-    });
-
-    showPopupButton.addEventListener("click", () => {
-        popupBox.classList.remove("hidden");
-    });
-});
-
-document.getElementById('start-lab-btn').addEventListener('click', async () => {
-    const startButton = document.getElementById('start-lab-btn');
-    const isStarting = startButton.textContent === 'Start Lab';
-
-    // Create or show a loading indicator above the button
-    let loadingIndicator = document.getElementById('loading-indicator');
-    if (!loadingIndicator) {
-        loadingIndicator = document.createElement('div');
-        loadingIndicator.id = 'loading-indicator';
-        loadingIndicator.textContent = 'Loading...';
-        loadingIndicator.style.marginBottom = '10px';
-        loadingIndicator.style.fontWeight = 'bold';
-        startButton.parentNode.insertBefore(loadingIndicator, startButton);
+    if (hidePopupButton && popupBox) {
+        hidePopupButton.addEventListener("click", () => {
+            popupBox.classList.add("hidden");
+        });
     }
-    loadingIndicator.style.display = 'block';
+    if (showPopupButton && popupBox) {
+        showPopupButton.addEventListener("click", () => {
+            popupBox.classList.remove("hidden");
+        });
+    }
 
-    // Disable the button while request is processing
-    startButton.disabled = true;
+    const startButton = document.getElementById('start-lab-btn');
+    if (startButton) {
+        startButton.addEventListener('click', async () => {
+            const isStarting = startButton.textContent.trim() === 'Start Lab';
 
-    try {
-        if (isStarting) {
-            const category = "{{ lab1_url }}";
-            const labname = "{{ lab2_url }}";
-            const response = await fetch(`/labs/${category}/${labname}/start`, {
-                method: 'GET',
-                headers: {
-                    'Content-Type': 'application/json'
+            let loadingIndicator = document.getElementById('loading-indicator');
+            if (!loadingIndicator) {
+                loadingIndicator = document.createElement('div');
+                loadingIndicator.id = 'loading-indicator';
+                loadingIndicator.textContent = 'Loading...';
+                loadingIndicator.style.marginBottom = '10px';
+                loadingIndicator.style.fontWeight = 'bold';
+                startButton.parentNode.insertBefore(loadingIndicator, startButton);
+            }
+            loadingIndicator.style.display = 'block';
+            startButton.disabled = true;
+
+            try {
+                if (isStarting) {
+                    const category = "{{ lab1_url }}";
+                    const labname = "{{ lab2_url }}";
+                    const response = await fetch(`/labs/${category}/${labname}/start`, {
+                        method: 'GET',
+                        headers: { 'Content-Type': 'application/json' }
+                    });
+                    if (!response.ok) throw new Error('Failed to start lab');
+
+                    const data = await response.json();
+                    const vulnLabUrlElement = document.getElementById('lab-url')?.querySelector('a');
+                    if (vulnLabUrlElement) {
+                        vulnLabUrlElement.href = data.url || '';
+                        vulnLabUrlElement.textContent = data.name || '';
+                    }
+
+                    startButton.textContent = 'Stop Lab';
+                    startButton.style.backgroundColor = '#ff0000';
+                } else {
+                    const response = await fetch('/stop', {
+                        method: 'GET',
+                        headers: { 'Content-Type': 'application/json' }
+                    });
+                    if (!response.ok) throw new Error('Failed to stop lab');
+
+                    startButton.textContent = 'Start Lab';
+                    startButton.style.backgroundColor = '';
+                    const vulnLabUrlElement = document.getElementById('lab-url')?.querySelector('a');
+                    if (vulnLabUrlElement) {
+                        vulnLabUrlElement.href = '';
+                        vulnLabUrlElement.textContent = '';
+                    }
                 }
-            });
-            if (!response.ok) throw new Error('Failed to start lab');
+            } catch (error) {
+                console.error(`Error ${isStarting ? 'starting' : 'stopping'} lab:`, error);
+                alert(`Failed to ${isStarting ? 'start' : 'stop'} lab. Please try again.`);
+            } finally {
+                startButton.disabled = false;
+                if (document.getElementById('loading-indicator')) {
+                    document.getElementById('loading-indicator').style.display = 'none';
+                }
+            }
+        });
+    }
 
-            const data = await response.json();
-            const vulnLabUrlElement = document.getElementById('lab-url').querySelector('a');
-            vulnLabUrlElement.href = data.url;
-            vulnLabUrlElement.textContent = data.name;
-
-            startButton.textContent = 'Stop Lab';
-            startButton.style.backgroundColor = '#ff0000';
-        } else {
+    const stopBtn = document.getElementById('stop-lab-btn');
+    if (stopBtn) {
+        stopBtn.addEventListener('click', async () => {
             const response = await fetch('/stop', {
                 method: 'GET',
                 headers: { 'Content-Type': 'application/json' }
             });
             if (!response.ok) throw new Error('Failed to stop lab');
+            const gotoBtn = document.getElementById('goto-lab-btn');
+            stopBtn.remove();
+            if (gotoBtn) gotoBtn.remove();
+            const labUrlElement = document.getElementById('lab-url');
+            if (labUrlElement) {
+                labUrlElement.href = "";
+                labUrlElement.textContent = "";
+            }
+        });
+    }
 
-            startButton.textContent = 'Start Lab';
-            startButton.style.backgroundColor = '';
-            const vulnLabUrlElement = document.getElementById('lab-url').querySelector('a');
-            vulnLabUrlElement.href = '';
-            vulnLabUrlElement.textContent = '';
-        }
-    } catch (error) {
-        console.error(`Error ${isStarting ? 'starting' : 'stopping'} lab:`, error);
-        alert(`Failed to ${isStarting ? 'start' : 'stop'} lab. Please try again.`);
-    } finally {
-        // Re-enable the button and hide loading indicator
-        startButton.disabled = false;
-        loadingIndicator.style.display = 'none';
+    const gotoBtn = document.getElementById('goto-lab-btn');
+    if (gotoBtn) {
+        gotoBtn.addEventListener('click', () => {
+            window.location.href = "{{ goto_url }}";
+        });
+    }
+
+    const quotes = [
+        "Hacking is our vision and mission — few in number, limitless in impact.",
+        "We don’t break things for chaos; we break them to make them stronger.",
+        "Code, curiosity, consequence — that’s how legends are built.",
+        "Find the weakness, fix the world.",
+        "Silent minds, loud exploits.",
+        "We hunt bugs; we build defenses.",
+        "In a world of locks, we bring the keys — responsibly.",
+        "Skill over noise. Precision over panic.",
+        "Not criminals. Constructors of cyber-resilience.",
+        "Where others see a wall, we find the tunnel.",
+        "Knowledge is our weapon; ethics is our shield.",
+        "We test today so the world is safe tomorrow.",
+        "Tiny exploits, massive lessons.",
+        "Break it thoughtfully. Patch it proudly.",
+        "From reconnaissance to remediation — we own the full cycle.",
+        "Stealth, skill, solution.",
+        "We speak binary, think human.",
+        "Hacking: the art of forcing change through understanding.",
+        "Few in numbers, heavier in impact.",
+        "We expose risks so people can sleep safely."
+    ];
+
+    const quoteEl = document.getElementById("quote");
+    if (quoteEl) {
+        const randomIndex = Math.floor(Math.random() * quotes.length);
+        quoteEl.textContent = quotes[randomIndex];
     }
 });
-document.getElementById('stop-lab-btn').addEventListener('click', async () => {
-    const response = await fetch('/stop', {
-        method: 'GET',
-        headers: { 'Content-Type': 'application/json' }
-    });
-    if (!response.ok) throw new Error('Failed to stop lab');
-    const stopButton = document.getElementById('stop-lab-btn');
-    const gotoButton = document.getElementById('goto-lab-btn');
-    stopButton.remove();
-    gotoButton.remove();
-    const labUrlElement = document.getElementById('lab-url');
-    labUrlElement.href = "";
-    labUrlElement.textContent = "";
-    
-});
-document.getElementById('goto-lab-btn').addEventListener('click', async () => {
-    window.location.href = "{{ goto_url }}";
-});
 </script>
+
 {% endblock %}
