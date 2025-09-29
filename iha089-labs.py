@@ -1,16 +1,11 @@
 from git import Repo
-import os, socket, sys, threading, multiprocessing, time
+import mimetypes
+from jinja2 import Environment, FileSystemLoader
+import os, socket, sys, threading, multiprocessing, time, json
 from json import load
-from flask import Flask
+from flask import Flask, render_template, jsonify, request
 import ssl
 from werkzeug.serving import run_simple
-from sec_bas import load_module
-
-current_lab = None
-mail_enabled = True
-smtp_proc = None
-MailServerIHA089 = None
-run_server = None
 
 def get_venv_python(venv_path="venv"):
     if not os.path.exists(venv_path):
@@ -28,6 +23,56 @@ def get_venv_python(venv_path="venv"):
     
     return python_path
 
+def serve_static(environ, start_response):
+    path = environ.get("PATH_INFO", "")
+    filepath = path.lstrip("/")
+
+    if ".." in filepath or filepath.startswith("/"):
+        start_response("403 Forbidden", [("Content-Type", "text/plain")])
+        return [b"Forbidden"]
+
+    full_path = f"{STATIC_DIR}/{filepath[len('static/'):]}"  
+    try:
+        with open(full_path, "rb") as f:
+            content = f.read()
+        content_type, _ = mimetypes.guess_type(full_path)
+        content_type = content_type or "application/octet-stream"
+        start_response("200 OK", [("Content-Type", content_type), ("Content-Length", str(len(content)))])
+        return [content]
+    except FileNotFoundError:
+        start_response("404 Not Found", [("Content-Type", "text/plain")])
+        return [b"Not Found"]
+
+def url_for(endpoint, **values):
+    if endpoint == "static":
+        filename = values.get("filename", "")
+        return f"/static/{filename}"
+    return "/"
+
+def render_template(template_name, environ=None, **kwargs):
+    class DummyRequest:
+        def __init__(self, environ):
+            self.path = environ.get("PATH_INFO", "/") if environ else "/"
+            self.method = environ.get("REQUEST_METHOD", "GET") if environ else "GET"
+            self.host = environ.get("HTTP_HOST", "") if environ else ""
+
+    if environ:
+        kwargs['request'] = DummyRequest(environ)
+
+    kwargs['url_for'] = lambda endpoint, **values: f"/static/{values.get('filename','')}" if endpoint == "static" else "/"
+
+    template = env.get_template(template_name)
+    return template.render(**kwargs).encode("utf-8")
+
+
+def get_lab_data():
+    json_path = os.path.join(os.getcwd(), "iha089_lab_info", "manage_labs.json")
+    try:
+        with open(json_path, 'r') as file:
+            return json.load(file)
+    except (FileNotFoundError, json.JSONDecodeError) as e:
+        print(f"Error loading lab data: {e}")
+        return None
 
 def run_with_venv(venv_path="venv"):
     try:
@@ -37,16 +82,150 @@ def run_with_venv(venv_path="venv"):
         print("Error re-executing in venv:", e)
         sys.exit(1)
 
+def stop_lab():
+    global current_lab
+    remove_subdomain(current_lab.lab_name)
+    current_lab = None
 
 def application(environ, start_response):
     global current_lab, mail_enabled, MailServerIHA089
 
     host = environ.get("HTTP_HOST", "").split(":")[0]
+    path = environ.get("PATH_INFO", "/")
+    
 
-    if host == "iha089-labs.in" and current_lab:
-        return current_lab.wsgi_app(environ, start_response)
-    elif host == "mail.iha089-labs.in" and mail_enabled and MailServerIHA089:
+    if host == "mail.iha089-labs.in" and mail_enabled and MailServerIHA089:
         return MailServerIHA089.wsgi_app(environ, start_response)
+    
+    if host == "iha089-labs.in":
+        if path.startswith("/static/"):
+            return serve_static(environ, start_response)
+        lab_data = get_lab_data()
+
+        if path == "/":
+            resp = render_template("index.html", environ=environ)
+            start_response("200 OK", [("Content-Type", "text/html"), ("Content-Length", str(len(resp)))])
+            return [resp]
+
+        if path == "/labs":
+            if lab_data:
+                global current_lab
+                goto_url=""
+                if current_lab == None:
+                    current_running_lab=""
+                    current_running_lab_url=""
+                else:
+                    current_running_lab=current_lab.real_name
+                    try:
+                        goto_url = f"https://iha089-labs.in/labs/{current_lab.cat_name}/{current_lab.lbname}"
+                    except:
+                        goto_url = ""
+                    current_running_lab_url=f"https://{current_running_lab}.iha089-labs.in"
+                print("current running lab: ", current_running_lab)
+                resp = render_template("labs.html", environ=environ, labs=lab_data['labs'], lb_path="/labs/", cat_type="Category", cat_url="", current_running_lab=current_running_lab, current_running_lab_url=current_running_lab_url, goto_url=goto_url)
+                start_response("200 OK", [("Content-Type", "text/html"), ("Content-Length", str(len(resp)))])
+                return [resp]
+            resp = b"Error loading labs."
+            start_response("500 Internal Server Error", [("Content-Type", "text/plain"), ("Content-Length", str(len(resp)))])
+            return [resp]
+
+        if path.startswith("/labs/"):
+            parts = path.strip("/").split("/")
+
+            if len(parts) == 2: 
+                category = parts[1]
+                category_labs = lab_data['labs'].get(category) if lab_data else None
+                cat_name = category_labs.get('labname', 'Category') if category_labs else category
+                if category_labs:
+                    goto_url=""
+                    if current_lab == None:
+                        current_running_lab=""
+                        current_running_lab_url=""
+                    else:
+                        current_running_lab=current_lab.real_name
+                        try:
+                            goto_url = f"https://iha089-labs.in/labs/{current_lab.cat_name}/{current_lab.lbname}"
+                        except:
+                            goto_url = ""
+                        current_running_lab_url=f"https://{current_running_lab}.iha089-labs.in"
+                    print("current running lab: ", current_running_lab)
+                    resp = render_template("labs.html", environ=environ, labs=category_labs['labs'], lb_path=f"/labs/{category}/", cat_type=cat_name, cat_url=category, current_running_lab=current_running_lab, current_running_lab_url=current_running_lab_url, goto_url=goto_url)
+                    start_response("200 OK", [("Content-Type", "text/html"), ("Content-Length", str(len(resp)))])
+                    return [resp]
+                resp = b"Category not found."
+                start_response("404 Not Found", [("Content-Type", "text/plain"), ("Content-Length", str(len(resp)))])
+                return [resp]
+
+            if len(parts) == 3:  
+                category, lab_name = parts[1], parts[2]
+                lab_info = lab_data['labs'].get(category, {}).get('labs', {}).get(lab_name) if lab_data else None
+                if lab_info:
+                    goto_url=""
+                    if current_lab == None:
+                        current_running_lab=""
+                    else:
+                        current_running_lab=current_lab.real_name
+                        try:
+                            goto_url = f"https://iha089-labs.in/labs/{current_lab.cat_name}/{current_lab.lbname}"
+                        except:
+                            goto_url = ""
+                    lab1_name = lab_data['labs'].get(category, {}).get('labname', 'Category')
+                    lab2_name = lab_info.get('labname', 'Lab')
+                    resp = render_template("slabs.html", environ=environ, labs=lab_info, lab1_url=category, lab2_url=lab_name, lab1_name=lab1_name, lab2_name=lab2_name, current_running_lab=current_running_lab, goto_url=goto_url)
+                    start_response("200 OK", [("Content-Type", "text/html"), ("Content-Length", str(len(resp)))])
+                    return [resp]
+                resp = b"Lab not found."
+                start_response("404 Not Found", [("Content-Type", "text/plain"), ("Content-Length", str(len(resp)))])
+                return [resp]
+
+            if len(parts) == 4 and parts[3] == "start":  
+                category, lab_name = parts[1], parts[2]
+                lab_info = lab_data['labs'].get(category, {}).get('labs', {}).get(lab_name) if lab_data else None
+                if not lab_info:
+                    resp = b"Lab not found."
+                    start_response("404 Not Found", [("Content-Type", "text/plain"), ("Content-Length", str(len(resp)))])
+                    return [resp]
+
+                cat_name = lab_data['labs'].get(category, {}).get('name', category)
+                nname = f"\nIHA089-LABS/{cat_name}#>"
+                mailserver = lab_info.get('mailserver', False)
+                try:
+                    stop_lab()
+                except:
+                    pass
+                each_info(lab_info, cat_name, nname, mailserver, category, lab_name)
+
+                resp = json.dumps({"url": f"https://{lab_name.lower()}.iha089-labs.in", "name": lab_name}).encode("utf-8")
+                start_response("200 OK", [("Content-Type", "application/json"), ("Content-Length", str(len(resp)))])
+                return [resp]
+
+        if path == "/stop":
+            stop_lab()
+            resp = b"Lab stopped."
+            start_response("200 OK", [("Content-Type", "text/plain"), ("Content-Length", str(len(resp)))])
+            return [resp]
+
+        if path == "/acceptable":
+            resp = render_template("acceptable.html")
+            start_response("200 OK", [("Content-Type", "text/html"), ("Content-Length", str(len(resp)))])
+            return [resp]
+
+        if path == "/term":
+            resp = render_template("term.html")
+            start_response("200 OK", [("Content-Type", "text/html"), ("Content-Length", str(len(resp)))])
+            return [resp]
+
+        if path == "/privacy":
+            resp = render_template("privacy.html")
+            start_response("200 OK", [("Content-Type", "text/html"), ("Content-Length", str(len(resp)))])
+            return [resp]
+
+        resp = b"404 - Page not found"
+        start_response("404 Not Found", [("Content-Type", "text/plain"), ("Content-Length", str(len(resp)))])
+        return [resp]
+
+    if current_lab and host == f"{current_lab.lab_name}.iha089-labs.in":
+        return current_lab.wsgi_app(environ, start_response)
 
     resp = b"No lab is running. Select one from the menu."
     start_response("200 OK", [("Content-Type", "text/plain"), ("Content-Length", str(len(resp)))])
@@ -108,8 +287,36 @@ def check_internet_connection():
         print("No internet connection")
         return False
 
+def add_subdomain(subdomain_name):
+    if os.name == "posix":
+        host_path = "/etc/hosts"
+    elif os.name == "nt":
+        host_path = "C:\\Windows\\System32\\drivers\\etc\\hosts"
+    else:
+        print("Unknown OS")
+        return
+    
+    with open(host_path, 'a') as ff:
+        ff.write(f"127.0.0.1   {subdomain_name}.iha089-labs.in")
+    
+def remove_subdomain(subdomain_name):
+    if os.name == "posix":
+        host_path = "/etc/hosts"
+    elif os.name == "nt":
+        host_path = "C:\\Windows\\System32\\drivers\\etc\\hosts"
+    else:
+        print("Unknown OS")
+        return
+    
+    with open(host_path, 'r') as ff:
+        lines = ff.readlines()
+    
+    with open(host_path, 'w') as ff:
+        for line in lines:
+            if f"{subdomain_name}.iha089-labs.in" not in line:
+                ff.write(line)
 
-def run_vulnerable_lab(file_path, app_name):
+def run_vulnerable_lab(file_path, category, lab_name, app_name):
     global current_lab
     try:
         import importlib.util
@@ -125,8 +332,13 @@ def run_vulnerable_lab(file_path, app_name):
         flask_app.template_folder = os.path.join(app_dir, "templates")
         flask_app.static_folder = os.path.join(app_dir, "static")
 
+        flask_app.lab_name = app_name.lower()
+        flask_app.real_name = app_name
+        flask_app.cat_name = category
+        flask_app.lbname = lab_name
         current_lab = flask_app
-        print(f"\n{app_name} is now active at https://iha089-labs.in")
+        add_subdomain(flask_app.lab_name)
+        print(f"\n{app_name} is now active at https://{flask_app.lab_name}.iha089-labs.in")
         print(f"\nMail Service is active at https://mail.iha089-labs.in")
 
     except Exception as e:
@@ -152,7 +364,7 @@ def get_lab_info():
     except Exception as e:
         print("Error fetching labs: "+str(e))
 
-def check_lab_is_present(lab_url, cat_name, nname, mailserver, version, description, blog_url, adf="Fetching"):
+def check_lab_is_present(lab_url, cat_name, nname, mailserver, version, description, blog_url, category, lab_name, adf="Fetching"):
     lab_path = os.path.join(os.getcwd(), cat_name, lab_url)
     if not os.path.isdir(lab_path):
         os.mkdir(lab_path)
@@ -174,13 +386,13 @@ def check_lab_is_present(lab_url, cat_name, nname, mailserver, version, descript
                     os.system("rm -rf "+lab_path)
                 elif os.name == "nt":
                     os.system("rmdir /s /q \""+lab_path+"\"")
-                check_lab_is_present(lab_url, cat_name, nname, mailserver, version, description, blog_url, adf="Updating")
+                check_lab_is_present(lab_url, cat_name, nname, mailserver, version, description, blog_url, category, lab_name, adf="Updating")
         except FileNotFoundError:
             if os.name == "posix":
                 os.system("rm -rf "+lab_path)
             elif os.name == "nt":
                 os.system("rmdir /s /q \""+lab_path+"\"")
-            check_lab_is_present(lab_url, cat_name, nname, mailserver, version, description, blog_url, adf="Fetching")
+            check_lab_is_present(lab_url, cat_name, nname, mailserver, version, description, blog_url, category, lab_name, adf="Fetching")
 
     py_path = lab_url.replace('Lab','.py')
     ff_path = os.path.join(lab_path, py_path)
@@ -190,94 +402,25 @@ def check_lab_is_present(lab_url, cat_name, nname, mailserver, version, descript
         module_path = os.path.join(lab_path, "modules.txt")
         load_module(module_path)
     except Exception as e:
-        pass
-    run_vulnerable_lab(ff_path, app_name=appName)
+        pass 
+
+    run_vulnerable_lab(ff_path, category, lab_name, app_name=appName)
 
     print("\n")
     print(description)
     print("Hint: "+blog_url)
-    
-    while True:
-        user_input = input(nname).strip().lower()
-        if user_input in ('stop', 'close'):
-            print("Lab stopped.")
-            global current_lab
-            current_lab = None
-            break
-        else:
-            print("Unknown command. Type 'stop' or 'close' to stop the lab.")
 
-
-def each_info(lab_info, cat_name, nname, mailserver):
+def each_info(lab_info, cat_name, nname, mailserver, category, lab_name):
     lab_desc = lab_info['description']
     lab_url = lab_info['laburl']
     blog_url = lab_info['blogurl']
     version = lab_info['version']
-    check_lab_is_present(lab_url, cat_name, nname, mailserver, version, lab_desc, blog_url)
+    check_lab_is_present(lab_url, cat_name, nname, mailserver, version, lab_desc, blog_url, category, lab_name)
 
 def chech_main_lab_name(name):
     lab_path = os.path.join(os.getcwd(),name)
     if not os.path.isdir(lab_path):
         os.mkdir(lab_path)
-
-def show_labs():
-    json_path = "iha089_lab_info/manage_labs.json"
-    with open(json_path, "r") as file:
-        data = load(file)
-
-    print("Available Lab Categories:")
-    categories = list(data['labs'].keys())
-    for idx, category in enumerate(categories, 1):
-        print(f"{idx}. >>>  {category}")
-    print("\npress `ctrl+c` for exit")
-    
-    flag=True
-    while flag:
-        try:
-            choice = int(input("\nIHA089-LABS#>"))
-            flag=False
-        except KeyboardInterrupt:
-            print("Exit by user")
-            sys.exit()
-        except ValueError:
-            flag=True
-
-        if flag is False and 1 <= choice <= len(categories):
-            selected_category = categories[choice - 1]
-            cat_name = data['labs'][selected_category]['name']
-            chech_main_lab_name(cat_name)
-            sub_cat = list(data['labs'][selected_category]['labs'].keys())
-
-            flag2=True
-            while flag2:
-                print("0. >>>  go to back")
-                for idx, sub in enumerate(sub_cat, 1):
-                    name = data['labs'][selected_category]['labs'][sub]['labname']
-                    print(f"{idx}. >>>  {name}")
-                print("\npress `ctrl+c` for exit")
-                try:
-                    nname= "\nIHA089-LABS/"+cat_name+"#>"
-                    sub_choice = int(input(nname))
-                    flag2=False
-                except KeyboardInterrupt:
-                    print("Exit by user")
-                    sys.exit()
-                except ValueError:
-                    flag2=True
-
-                if flag2 is False and 1 <=sub_choice <= len(sub_cat):
-                    selected_sub_cat = sub_cat[sub_choice - 1]
-                    lab_name = data['labs'][selected_category]['labs'][selected_sub_cat]
-                    mail_server = data['labs'][selected_category]['labs'][selected_sub_cat]['mailserver']
-                    each_info(lab_name, cat_name, nname, mail_server)
-                if flag2 is False and sub_choice == 0:
-                    show_labs()
-                else:
-                    print("Please choose correct option!")
-                    flag2=True
-        else:
-            print("Please choose correct option!")
-            flag=True
 
 def start_smtp_process():
     global smtp_proc, mail_enabled, run_server
@@ -291,6 +434,14 @@ def start_smtp_process():
     mail_enabled = True
 
 if __name__ == "__main__":
+    env = Environment(loader=FileSystemLoader("templates"))
+    STATIC_DIR = "static"
+    from sec_bas import load_module
+    current_lab = None
+    mail_enabled = True
+    smtp_proc = None
+    MailServerIHA089 = None
+    run_server = None
     if not os.path.isfile("check_venv"):
         with open("check_venv", "w") as f:
             f.write("0")
@@ -311,12 +462,10 @@ if __name__ == "__main__":
 
     if check_internet_connection():
         print()
-        #get_lab_info()
+        get_lab_info()
 
     start_smtp_process()
     mail_enabled = True
-
-    threading.Thread(target=show_labs, daemon=True).start()
 
     context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
     context.load_cert_chain(certfile="iha089-labs.crt", keyfile="iha089-labs.key")
