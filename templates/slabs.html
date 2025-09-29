@@ -1,0 +1,198 @@
+{% extends "base.html" %}
+{% block title %}Explore AIs{% endblock %}
+{% block content %}
+    
+<section id="labs" class="ai-list-section">
+    <h2>{{ labs['labname'] }}</h2>
+    <div class="terminal" id="terminal">
+        ┌──(root㉿IHA089)-[/<a href="/labs">IHA089 Labs</a>/<a href="/labs/{{ lab1_url | urlencode }}">{{ lab1_name }}</a>/<a href="/labs/{{ lab1_url | urlencode }}/{{ lab2_url | urlencode }}">{{ lab2_name }}</a>]
+        └─# <span id="typewriter"></span><span class="cursor"> </span>
+    </div>
+</section>
+<section class="lab-section">
+    <div class="lab-card">
+        <img src="https://img.icons8.com/?size=100&id=44020&format=png">
+        <div class="lab-details">
+            <p><span><strong>Author: </strong>{{ labs['authorname'] }}</span></p>
+            <p><strong>Blog URL: </strong><a href="{{ labs['blogurl'] }}"target="_blank">{{ labs['blogurl'] }}</a></p>
+        </div>
+        <div class="lab-actions">
+            {% if current_running_lab == "" %}
+                <button id="start-lab-btn" class="start-btn">Start Lab</button>
+            {% else %}
+                {% if current_running_lab == labs['labname'].replace(" ", "") %}
+                    <button id="start-lab-btn" class="start-btn" style="background-color: #ff0000;">Stop Lab</button>
+                {% else %}
+                    <button id="start-lab-btn" class="start-btn special-hover">Start Lab</button>
+                {% endif %}
+            {% endif %}
+        </div>
+    </div>
+    <span><strong>Description: </strong>{{ labs['description']}}</span>
+    <span><strong>Domain: </strong></span>
+    {% for domain in labs['domains'] %}
+        <span class="lab-domain">{{ domain }}.iha089-labs.in</span>
+    {% endfor %}
+    <div class="lab-quotes">
+        <p>The code is daring you to quit. Prove it wrong.</p>
+    </div>
+</section>
+<div id="popup-box" class="popup-box">
+    <div class="popup-content">
+        <div class="popup-row">
+            <strong>Mail URL:</strong> <a href="https://mail.iha089-labs.in" target="_blank">IHA089 Mail</a>
+        </div>
+        <div class="popup-row">
+            <strong>Lab URL:</strong> <span id="lab-url"> <a href="{{ current_running_lab_url }}" target="_blank">{{ current_running_lab }}</a></span>
+        </div>
+        {% if current_running_lab != "" and current_running_lab != labs['labname'].replace(" ", "") %}
+            <div class="popup-row">
+                <button id="stop-lab-btn" class="start-btn">stop Lab</button>
+                <button id="goto-lab-btn" class="start-btn">goto Lab</button>
+            </div>
+        {% endif %}
+        <button id="hide-popup" class="popup-button">&gt;</button>
+    </div>
+</div>
+<div id="show-popup-area" class="show-popup-area">
+    <button id="show-popup" class="popup-button">&lt;</button>
+</div>
+
+<script>
+class TerminalTypewriter {
+    constructor(element, toRotate, period) {
+        this.toRotate = toRotate;
+        this.el = element;
+        this.loopNum = 0;
+        this.period = parseInt(period, 10) || 2000;
+        this.txt = '';
+        this.isDeleting = false;
+        this.tick();
+    }
+    tick() {
+        let i = this.loopNum % this.toRotate.length;
+        let fullTxt = this.toRotate[i];
+
+        if (this.isDeleting) {
+            this.txt = fullTxt.substring(0, this.txt.length - 1);
+        } else {
+            this.txt = fullTxt.substring(0, this.txt.length + 1);
+        }
+
+        this.el.innerHTML = this.txt;
+
+        let delta = 100 - Math.random() * 50;
+        if (this.isDeleting) { delta /= 2; }
+
+        if (!this.isDeleting && this.txt === fullTxt) {
+            delta = this.period;
+            this.isDeleting = true;
+        } else if (this.isDeleting && this.txt === '') {
+            this.isDeleting = false;
+            this.loopNum++;
+            delta = 500;
+        }
+
+        setTimeout(() => this.tick(), delta);
+    }
+}
+
+document.addEventListener("DOMContentLoaded", function () {
+    const toRotate = ["Nmap","Amass","Recon-ng","theHarvester","Sublist3r","dnsenum","dnsrecon","DNSDumpster","Shodan-cli","Maltego","Gobuster","Dirbuster","ffuf","Nikto","Wapiti","w3af","WhatWeb","WPScan","Burp Suite","Mitmproxy","sqlmap","Nuclei","Tor","Netcat","Curl","Wget","Sqlninja","Commix","XSSer","Wfuzz","Dirsearch","XSStrike","SSRFmap"];
+    const typewriterElement = document.getElementById("typewriter");
+    if (typewriterElement) {
+        new TerminalTypewriter(typewriterElement, toRotate, 2000);
+    }
+    const popupBox = document.getElementById("popup-box");
+    const hidePopupButton = document.getElementById("hide-popup");
+    const showPopupButton = document.getElementById("show-popup");
+
+    hidePopupButton.addEventListener("click", () => {
+        popupBox.classList.add("hidden");
+    });
+
+    showPopupButton.addEventListener("click", () => {
+        popupBox.classList.remove("hidden");
+    });
+});
+
+document.getElementById('start-lab-btn').addEventListener('click', async () => {
+    const startButton = document.getElementById('start-lab-btn');
+    const isStarting = startButton.textContent === 'Start Lab';
+
+    // Create or show a loading indicator above the button
+    let loadingIndicator = document.getElementById('loading-indicator');
+    if (!loadingIndicator) {
+        loadingIndicator = document.createElement('div');
+        loadingIndicator.id = 'loading-indicator';
+        loadingIndicator.textContent = 'Loading...';
+        loadingIndicator.style.marginBottom = '10px';
+        loadingIndicator.style.fontWeight = 'bold';
+        startButton.parentNode.insertBefore(loadingIndicator, startButton);
+    }
+    loadingIndicator.style.display = 'block';
+
+    // Disable the button while request is processing
+    startButton.disabled = true;
+
+    try {
+        if (isStarting) {
+            const category = "{{ lab1_url }}";
+            const labname = "{{ lab2_url }}";
+            const response = await fetch(`/labs/${category}/${labname}/start`, {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            });
+            if (!response.ok) throw new Error('Failed to start lab');
+
+            const data = await response.json();
+            const vulnLabUrlElement = document.getElementById('lab-url').querySelector('a');
+            vulnLabUrlElement.href = data.url;
+            vulnLabUrlElement.textContent = data.name;
+
+            startButton.textContent = 'Stop Lab';
+            startButton.style.backgroundColor = '#ff0000';
+        } else {
+            const response = await fetch('/stop', {
+                method: 'GET',
+                headers: { 'Content-Type': 'application/json' }
+            });
+            if (!response.ok) throw new Error('Failed to stop lab');
+
+            startButton.textContent = 'Start Lab';
+            startButton.style.backgroundColor = '';
+            const vulnLabUrlElement = document.getElementById('lab-url').querySelector('a');
+            vulnLabUrlElement.href = '';
+            vulnLabUrlElement.textContent = '';
+        }
+    } catch (error) {
+        console.error(`Error ${isStarting ? 'starting' : 'stopping'} lab:`, error);
+        alert(`Failed to ${isStarting ? 'start' : 'stop'} lab. Please try again.`);
+    } finally {
+        // Re-enable the button and hide loading indicator
+        startButton.disabled = false;
+        loadingIndicator.style.display = 'none';
+    }
+});
+document.getElementById('stop-lab-btn').addEventListener('click', async () => {
+    const response = await fetch('/stop', {
+        method: 'GET',
+        headers: { 'Content-Type': 'application/json' }
+    });
+    if (!response.ok) throw new Error('Failed to stop lab');
+    const stopButton = document.getElementById('stop-lab-btn');
+    const gotoButton = document.getElementById('goto-lab-btn');
+    stopButton.remove();
+    gotoButton.remove();
+    const labUrlElement = document.getElementById('lab-url');
+    labUrlElement.href = "";
+    labUrlElement.textContent = "";
+    
+});
+document.getElementById('goto-lab-btn').addEventListener('click', async () => {
+    window.location.href = "{{ goto_url }}";
+});
+</script>
+{% endblock %}

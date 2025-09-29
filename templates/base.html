@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IHA089-LABS::{% block title %}{% endblock %}</title>
+		<link rel = "icon" href ="{{ url_for('static', filename='images/logo.png') }}" type = "image/x-icon">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+</head>
+<body>
+    <header>
+        <div class="logo">IHA089-Labs</div>
+        <nav>
+            <ul>
+                <li><a href="/">Home</a></li>
+                <li><a href="/labs">Labs</a></li>
+                <li><a href="https://iha089.org" target="_blank">Official Website</a></li>
+                <li><a href="https://buymeacoffee.com/iha089" target="_blank">Buy Me a Coffee</a></li>
+            </ul>
+        </nav>
+    </header>
+
+    <main>
+        {% block content %}{% endblock %}
+    </main>
+
+    <footer class="footer">
+        <div class="footer-column">
+            <h5>About</h5>
+            <p>IHA089: Navigating the Digital Realm with Code and Security – Where Programming Insights Meet Cyber Vigilance. | अंत अस्ति प्रारंभ</p>
+        </div>
+        <div class="footer-column">
+            <h5>Social</h5>
+            <div class="socials">
+                <a href="https://t.me/IHATron"><i class="fa fa-telegram"></i></a>
+                <a href="https://www.youtube.com/@IHA089"><i class="fa fa-youtube"></i></a>
+                <a href="https://www.github.com/IHA089"><i class="fa fa-github"></i></a>
+                <a href="https://whatsapp.com/channel/0029Va4gpDw6LwHqmiFnqT2t"><i class="fa fa-whatsapp"></i></a>
+                <a href="https://x.com/iha089"><i class="fa fa-twitter"></i></a>
+                <a href="https://www.instagram.com/iha089"><i class="fa fa-instagram"></i></a>
+                <a href="https://www.linkedin.com/company/iha089/"><i class="fa fa-linkedin"></i></a>
+            </div>
+        </div>
+        <div class="footer-column">
+            <h5>Address</h5>
+            <p><b>216-k Block, JJN, Rajasthan, India</b></p>
+            <a href="mailto:iha089-labs@iha089.org">iha089-labs@iha089.org</a>
+        </div>
+        <div class="footer-bottom">
+            <p>Copyright © IHA089</p>
+            <ul class="footer-links">
+                <li><a href="/acceptable">Acceptable Use Policy</a></li>
+                <li><a href="/term">Terms of Service</a></li>
+                <li><a href="/privacy">Privacy Policy</a></li>
+            </ul>
+        </div>
+    </footer>
+</body>
+</html>

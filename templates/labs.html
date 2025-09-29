@@ -1,0 +1,131 @@
+{% extends "base.html" %}
+{% block title %}Explore AIs{% endblock %}
+{% block content %}
+    
+<section id="labs" class="ai-list-section">
+    <h2>{{ cat_type }}</h2>
+    <div class="terminal" id="terminal">
+        {% if cat_type != "Category" %}
+        ┌──(root㉿IHA089)-[/<a href="/labs">IHA089 Labs</a>/<a href="/labs/{{ cat_url | urlencode }}">{{ cat_type }}</a>]
+        └─# <span id="typewriter"></span><span class="cursor"> </span>
+        {% else %}
+        ┌──(root㉿IHA089)-[/<a href="/labs">IHA089 Labs</a>]
+        └─# <span id="typewriter"></span><span class="cursor"> </span>
+        {% endif %}
+    </div>
+    <div class="ai-grid">
+        {% for category_key, category in labs.items() %}
+        <div class="ai-card">
+            <img src="https://img.icons8.com/?size=100&id=44020&format=png" alt="SQLi">
+            <h3>{{ category['labname'] }}</h3>
+            <p>{{ category['description']}}</p>
+            <div class="card-overlay">
+                <div class="card-actions">
+                    <a href="{{ lb_path }}{{ category_key | urlencode }}" class="btn btn-primary">Explore</a>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</section>
+<div id="popup-box" class="popup-box">
+    <div class="popup-content">
+        <div class="popup-row">
+            <strong>Mail URL:</strong> <a href="https://mail.iha089-labs.in" target="_blank">IHA089 Mail</a>
+        </div>
+        <div class="popup-row">
+            <strong>Lab URL:</strong> <span id="lab-url"> <a href="{{ current_running_lab_url }}" target="_blank">{{ current_running_lab }}</a></span>
+        </div>
+        {% if current_running_lab != "" %}
+            <div class="popup-row">
+                <button id="stop-lab-btn" class="start-btn">stop Lab</button>
+                <button id="goto-lab-btn" class="start-btn">goto Lab</button>
+            </div>
+        {% endif %}
+        <button id="hide-popup" class="popup-button">&gt;</button>
+    </div>
+</div>
+<div id="show-popup-area" class="show-popup-area">
+    <button id="show-popup" class="popup-button">&lt;</button>
+</div>
+<script>
+class TerminalTypewriter {
+    constructor(element, toRotate, period) {
+        this.toRotate = toRotate;
+        this.el = element;
+        this.loopNum = 0;
+        this.period = parseInt(period, 10) || 2000;
+        this.txt = '';
+        this.isDeleting = false;
+        this.tick();
+    }
+    tick() {
+        let i = this.loopNum % this.toRotate.length;
+        let fullTxt = this.toRotate[i];
+
+        if (this.isDeleting) {
+            this.txt = fullTxt.substring(0, this.txt.length - 1);
+        } else {
+            this.txt = fullTxt.substring(0, this.txt.length + 1);
+        }
+
+        this.el.innerHTML = this.txt;
+
+        let delta = 100 - Math.random() * 50;
+        if (this.isDeleting) { delta /= 2; }
+
+        if (!this.isDeleting && this.txt === fullTxt) {
+            delta = this.period;
+            this.isDeleting = true;
+        } else if (this.isDeleting && this.txt === '') {
+            this.isDeleting = false;
+            this.loopNum++;
+            delta = 500;
+        }
+
+        setTimeout(() => this.tick(), delta);
+    }
+}
+</script>
+
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+    const toRotate = [{% for category_key, category in labs.items() %}
+        "{{ category.labname | safe }}"{% if not loop.last %},{% endif %}
+    {% endfor %}];
+    const typewriterElement = document.getElementById("typewriter");
+    if (typewriterElement) {
+        new TerminalTypewriter(typewriterElement, toRotate, 2000);
+    }
+    const popupBox = document.getElementById("popup-box");
+    const hidePopupButton = document.getElementById("hide-popup");
+    const showPopupButton = document.getElementById("show-popup");
+
+    hidePopupButton.addEventListener("click", () => {
+        popupBox.classList.add("hidden");
+    });
+
+    showPopupButton.addEventListener("click", () => {
+        popupBox.classList.remove("hidden");
+    });
+});
+document.getElementById('stop-lab-btn').addEventListener('click', async () => {
+    const response = await fetch('/stop', {
+        method: 'GET',
+        headers: { 'Content-Type': 'application/json' }
+    });
+    if (!response.ok) throw new Error('Failed to stop lab');
+    const stopButton = document.getElementById('stop-lab-btn');
+    const gotoButton = document.getElementById('goto-lab-btn');
+    stopButton.remove();
+    gotoButton.remove();
+    const labUrlElement = document.getElementById('lab-url');
+    labUrlElement.href = "";
+    labUrlElement.textContent = "";
+    
+});
+document.getElementById('goto-lab-btn').addEventListener('click', async () => {
+    window.location.href = "{{ goto_url }}";
+});
+</script>
+{% endblock %}
