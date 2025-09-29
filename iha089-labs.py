@@ -461,4 +461,5 @@ if __name__ == "__main__":
     context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
     context.load_cert_chain(certfile="iha089-labs.crt", keyfile="iha089-labs.key")
 
+    print("Access URL::: https://iha089-labs.in")
     run_simple("127.0.0.1", 443, application, ssl_context=context)
