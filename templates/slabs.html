@@ -11,7 +11,11 @@
 </section>
 <section class="lab-section">
     <div class="lab-card">
-        <img src="https://img.icons8.com/?size=100&id=44020&format=png">
+        {% if labs['img'] == "" %}
+            <img src="/static/images/logo.png" alt="{{ labs['labname'] }}">
+        {% else %}
+            <img src="{{ labs['img'] }}" alt="{{ labs['labname'] }}">
+        {% endif %}
         <div class="lab-details">
             <p><span><strong>Author: </strong>{{ labs['authorname'] }}</span></p>
             <p><strong>Blog URL: </strong><a href="{{ labs['blogurl'] }}"target="_blank">{{ labs['blogurl'] }}</a></p>
@@ -60,6 +64,9 @@
 
 <script>
 document.addEventListener("DOMContentLoaded", function () {
+    // ---------------------------
+    // Terminal Typewriter
+    // ---------------------------
     class TerminalTypewriter {
         constructor(element, toRotate, period) {
             this.toRotate = toRotate;
@@ -104,6 +111,9 @@ document.addEventListener("DOMContentLoaded", function () {
         new TerminalTypewriter(typewriterElement, toRotate, 2000);
     }
 
+    // ---------------------------
+    // Popup show/hide
+    // ---------------------------
     const popupBox = document.getElementById("popup-box");
     const hidePopupButton = document.getElementById("hide-popup");
     const showPopupButton = document.getElementById("show-popup");
@@ -119,11 +129,15 @@ document.addEventListener("DOMContentLoaded", function () {
         });
     }
 
+    // ---------------------------
+    // Start / Stop / Goto lab buttons (safe checks)
+    // ---------------------------
     const startButton = document.getElementById('start-lab-btn');
     if (startButton) {
         startButton.addEventListener('click', async () => {
             const isStarting = startButton.textContent.trim() === 'Start Lab';
 
+            // Create or show a loading indicator above the button
             let loadingIndicator = document.getElementById('loading-indicator');
             if (!loadingIndicator) {
                 loadingIndicator = document.createElement('div');
@@ -182,6 +196,7 @@ document.addEventListener("DOMContentLoaded", function () {
         });
     }
 
+    // stop button (safe)
     const stopBtn = document.getElementById('stop-lab-btn');
     if (stopBtn) {
         stopBtn.addEventListener('click', async () => {
@@ -201,6 +216,7 @@ document.addEventListener("DOMContentLoaded", function () {
         });
     }
 
+    // goto button (safe)
     const gotoBtn = document.getElementById('goto-lab-btn');
     if (gotoBtn) {
         gotoBtn.addEventListener('click', () => {
@@ -208,6 +224,9 @@ document.addEventListener("DOMContentLoaded", function () {
         });
     }
 
+    // ---------------------------
+    // Random quote (runs safely after DOM ready)
+    // ---------------------------
     const quotes = [
         "Hacking is our vision and mission — few in number, limitless in impact.",
         "We don’t break things for chaos; we break them to make them stronger.",
