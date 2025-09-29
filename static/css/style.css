@@ -45,6 +45,24 @@ header .logo {
     color: var(--header-color);
 }
 
+.navbar-brand {
+	display: flex;
+	align-items: center;
+	color: var(--neon-green) !important;
+	font-size: 24px;
+	text-decoration: none;
+	text-shadow: var(--shadow-green);
+}
+
+.brand-logo {
+	height: 35px;
+	margin-right: 10px;
+}
+
+.brand-text {
+	text-transform: uppercase;
+}
+
 header nav ul {
     list-style: none;
     display: flex;
