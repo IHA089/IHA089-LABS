@@ -1,0 +1,180 @@
+{% extends "base.html" %}
+{% block title %}IHA089-Labs | Learn Hacking{% endblock %}
+{% block content %}
+
+<section class="hero-section">
+    <h1>IHA089-Labs</h1>
+    <div class="terminal" id="terminal">
+        ┌──(root㉿IHA089)-[<a href="/">IHA089-LABS:::127.0.0.1</a>]
+        └─# <span id="typewriter"></span><span class="cursor"> </span>
+    </div>
+    <p class="hero-subheading">Navigating the Digital Realm with Code and Security - Where Programming Insights Meet Cyber Vigilance.</p>
+</section>
+
+<section class="features-section">
+        <div class="feature-row">
+            <div class="feature-box feature-left">
+                <div class="feature-content">
+                    <h3>Realistic Learning Environment</h3>
+                    <p>IHA089-Labs is a self-contained vulnerable lab ecosystem that provides a safe, offline environment for practicing web application security. Every lab is designed to mimic real-world infrastructures, featuring subdomains, SSL/TLS, local mail services, and even simulated WAFs. This ensures learners experience scenarios similar to modern bug bounty targets, not just theoretical challenges.</p>
+                </div>
+            </div>
+            <div class="feature-box-spacer"></div>
+        </div>
+        <div class="feature-row">
+            <div class="feature-box-spacer"></div>
+            <div class="feature-box feature-right">
+                <div class="feature-content">
+                    <h3>Educational & Ethical Use Only</h3>
+                    <p>All labs are intentionally vulnerable for personal learning, research, and skill-building. They are strictly for offline use and should never be deployed on the public internet or misused against real systems. IHA089-Labs exists to help security enthusiasts practice responsibly and ethically.</p>
+                </div>
+            </div>
+        </div>
+        <div class="feature-row">
+            <div class="feature-box feature-left">
+                <div class="feature-content">
+                    <h3>Who Should Use It?</h3>
+                    <p>IHA089-Labs is ideal for bug hunters, security researchers, and students. It allows users to practice core web security concepts such as SQL Injection, XSS, CSRF, SSRF, and more through hands-on labs, rather than just learning theory.</p>
+                </div>
+            </div>
+            <div class="feature-box-spacer"></div>
+        </div>
+    </section>
+
+<section id="labs" class="ai-list-section">
+    <div class="ai-grid">
+        <div class="ai-home">
+            <h3>Works Offline (localhost setup)</h3>
+            <p>All labs run safely on your own machine for a completely isolated environment.</p>
+        </div>
+        <div class="ai-home">
+            <h3>Subdomain-based Labs (xss.iha089-labs.in, etc.)</h3>
+            <p>Each lab runs on a dedicated subdomain, just like real bug bounty programs, making practice feel authentic.</p>
+        </div>
+        <div class="ai-home">
+            <h3>Integrated Mail Service (mail.iha089-labs.in)</h3>
+            <p>Simulates real email workflows such as registration, password resets, and phishing scenarios.</p>
+        </div>
+        <div class="ai-home">
+            <h3>Local SMTP Server</h3>
+            <p>Local SMTP setup to make it real SMTP server for mail delivery between users and labs.</p>
+        </div>
+        <div class="ai-home">
+            <h3>SSL Certificates Included</h3>
+            <p>Every lab is HTTPS-enabled with SSL/TLS so you can test cookies, HSTS, downgrade attacks, and more.</p>
+        </div>
+        <div class="ai-home">
+            <h3>Open-Source & Community Driven</h3>
+            <p>All labs and configs are open-source. Fork, extend, and contribute new challenges to keep the ecosystem growing.</p>
+        </div>
+        <div class="ai-home">
+            <h3>Python venv Environment Support</h3>
+            <p>Each lab runs inside an isolated Python virtual environment for easy setup, safe dependency management.</p>
+        </div>
+        <div class="ai-home">
+            <h3>Continuous Updates</h3>
+            <p>New vulnerabilities and scenarios are regularly added, ensuring your labs evolve with modern attack surfaces.</p>
+        </div>
+    </div>
+</section>
+
+<section class="cta-section">
+    <h2>Explore IHA089 Labs</h2>
+    <p>Dive into hands-on cybersecurity challenges and vulnerable environments designed for bug hunters, security researchers, and students.</p>
+    <a href="{{ url_for('labs') }}" class="btn-primary">Go to Labs</a>
+</section>
+
+<script>
+class TerminalTypewriter {
+    constructor(element, toRotate, period) {
+        this.toRotate = toRotate;
+        this.el = element;
+        this.loopNum = 0;
+        this.period = parseInt(period, 10) || 2000;
+        this.txt = '';
+        this.isDeleting = false;
+        this.tick();
+    }
+    tick() {
+        let i = this.loopNum % this.toRotate.length;
+        let fullTxt = this.toRotate[i];
+
+        if (this.isDeleting) {
+            this.txt = fullTxt.substring(0, this.txt.length - 1);
+        } else {
+            this.txt = fullTxt.substring(0, this.txt.length + 1);
+        }
+
+        this.el.innerHTML = this.txt;
+
+        let delta = 100 - Math.random() * 50;
+        if (this.isDeleting) { delta /= 2; }
+
+        if (!this.isDeleting && this.txt === fullTxt) {
+            delta = this.period;
+            this.isDeleting = true;
+        } else if (this.isDeleting && this.txt === '') {
+            this.isDeleting = false;
+            this.loopNum++;
+            delta = 500;
+        }
+
+        setTimeout(() => this.tick(), delta);
+    }
+}
+
+function animateText() {
+    const subheading = document.querySelector('.hero-subheading');
+    if (!subheading) return;
+
+    const text = subheading.textContent;
+
+    function getRandomCharacters(count) {
+        subheading.innerHTML = text.split('').map(char => `<span>${char}</span>`).join('');
+        const spans = Array.from(subheading.querySelectorAll('span'));
+        const selectedIndices = [];
+        while (selectedIndices.length < Math.min(count, spans.length) && spans.length > 0) {
+            const randomIndex = Math.floor(Math.random() * spans.length);
+            selectedIndices.push(randomIndex);
+            spans.splice(randomIndex, 1); 
+        }
+        return selectedIndices.map(index => subheading.querySelectorAll('span')[index]);
+    }
+
+    function highlightAndSwipe() {
+        const charSpans = getRandomCharacters(10); 
+        if (charSpans.length === 0) return;
+
+        charSpans.forEach(span => span.classList.add('highlighted'));
+        setTimeout(() => {
+            charSpans.forEach(span => span.classList.add('swiping'));
+            setTimeout(() => {
+                charSpans.forEach(span => {
+                    span.classList.remove('swiping');
+                    span.classList.add('swiping-right');
+                });
+                setTimeout(() => {
+                    charSpans.forEach(span => span.classList.remove('highlighted', 'swiping-right'));
+                    setTimeout(highlightAndSwipe, 1200);
+                }, 500); 
+            }, 3000); 
+        }, 1000); 
+    }
+
+    setInterval(highlightAndSwipe, 5100); 
+}
+
+</script>
+
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+    let toRotate = ["There’s no place like 127.0.0.1.", "Hacking is our vision and mission.", "Exploit the bug, secure the world.", "Recon first, exploit comes later.", "Curiosity fuels every hacker’s journey.", "In payloads, truth reveals itself.", "Bug hunters write tomorrow’s security.", "Trust no input, test every output.", "Every port hides a secret.", "Vulnerabilities whisper, hackers listen.", "Code speaks, hackers translate it."];
+    let typewriterElement = document.getElementById("typewriter");
+    if (typewriterElement) {
+        new TerminalTypewriter(typewriterElement, toRotate, 2000);
+    }
+    animateText();
+});
+</script>
+
+{% endblock %}
