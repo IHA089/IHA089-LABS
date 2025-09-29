@@ -121,7 +121,6 @@ def application(environ, start_response):
                     except:
                         goto_url = ""
                     current_running_lab_url=f"https://{current_running_lab}.iha089-labs.in"
-                print("current running lab: ", current_running_lab)
                 resp = render_template("labs.html", environ=environ, labs=lab_data['labs'], lb_path="/labs/", cat_type="Category", cat_url="", current_running_lab=current_running_lab, current_running_lab_url=current_running_lab_url, goto_url=goto_url)
                 start_response("200 OK", [("Content-Type", "text/html"), ("Content-Length", str(len(resp)))])
                 return [resp]
@@ -148,7 +147,6 @@ def application(environ, start_response):
                         except:
                             goto_url = ""
                         current_running_lab_url=f"https://{current_running_lab}.iha089-labs.in"
-                    print("current running lab: ", current_running_lab)
                     resp = render_template("labs.html", environ=environ, labs=category_labs['labs'], lb_path=f"/labs/{category}/", cat_type=cat_name, cat_url=category, current_running_lab=current_running_lab, current_running_lab_url=current_running_lab_url, goto_url=goto_url)
                     start_response("200 OK", [("Content-Type", "text/html"), ("Content-Length", str(len(resp)))])
                     return [resp]
@@ -338,8 +336,6 @@ def run_vulnerable_lab(file_path, category, lab_name, app_name):
         flask_app.lbname = lab_name
         current_lab = flask_app
         add_subdomain(flask_app.lab_name)
-        print(f"\n{app_name} is now active at https://{flask_app.lab_name}.iha089-labs.in")
-        print(f"\nMail Service is active at https://mail.iha089-labs.in")
 
     except Exception as e:
         print(f"Error running lab: {e}")
@@ -406,10 +402,6 @@ def check_lab_is_present(lab_url, cat_name, nname, mailserver, version, descript
 
     run_vulnerable_lab(ff_path, category, lab_name, app_name=appName)
 
-    print("\n")
-    print(description)
-    print("Hint: "+blog_url)
-
 def each_info(lab_info, cat_name, nname, mailserver, category, lab_name):
     lab_desc = lab_info['description']
     lab_url = lab_info['laburl']
@@ -425,7 +417,6 @@ def chech_main_lab_name(name):
 def start_smtp_process():
     global smtp_proc, mail_enabled, run_server
     if smtp_proc and smtp_proc.is_alive():
-        print("SMTP already running.")
         mail_enabled = True
         return
     smtp_proc = multiprocessing.Process(target=run_server, daemon=True)
