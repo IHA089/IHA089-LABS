@@ -295,7 +295,7 @@ def add_subdomain(subdomain_name):
         return
     
     with open(host_path, 'a') as ff:
-        ff.write(f"127.0.0.1   {subdomain_name}.iha089-labs.in")
+        ff.write(f"\n127.0.0.1   {subdomain_name}.iha089-labs.in")
     
 def remove_subdomain(subdomain_name):
     if os.name == "posix":
@@ -312,7 +312,8 @@ def remove_subdomain(subdomain_name):
     with open(host_path, 'w') as ff:
         for line in lines:
             if f"{subdomain_name}.iha089-labs.in" not in line:
-                ff.write(line)
+                if line != "\n":
+                    ff.write(line)
 
 def run_vulnerable_lab(file_path, category, lab_name, app_name):
     global current_lab
@@ -474,7 +475,7 @@ if __name__ == "__main__":
 
     if check_internet_connection():
         print()
-        #get_lab_info()
+        get_lab_info()
 
     start_smtp_process()
     mail_enabled = True
