@@ -360,8 +360,14 @@ def get_lab_info():
     except Exception as e:
         print("Error fetching labs: "+str(e))
 
+def check_for_cat_path(cat_name):
+    lab_path = os.path.join(os.getcwd(), cat_name)
+    if not os.path.isdir(lab_path):
+        os.mkdir(lab_path)
+
 def check_lab_is_present(lab_url, cat_name, nname, mailserver, version, description, blog_url, category, lab_name, adf="Fetching"):
     lab_path = os.path.join(os.getcwd(), cat_name, lab_url)
+    check_for_cat_path(cat_name)
     if not os.path.isdir(lab_path):
         os.mkdir(lab_path)
         try:
@@ -424,7 +430,22 @@ def start_smtp_process():
     time.sleep(0.5)
     mail_enabled = True
 
+def is_running_in_venv(venv_name="IHA089_Labs_venv"):
+    return (sys.prefix != sys.base_prefix) and (venv_name in sys.prefix)
+
+
+
 if __name__ == "__main__":
+    VENV_NAME = "IHA089_Labs_venv"
+    if not is_running_in_venv(VENV_NAME):
+        try:
+            run_with_venv(VENV_NAME) 
+        except Exception as e:
+            print(f"Failed to re-execute in venv: {e}")
+            sys.exit(1)
+        sys.exit(0) 
+
+    print(f"Running inside virtual environment: {VENV_NAME}")
     env = Environment(loader=FileSystemLoader("templates"))
     STATIC_DIR = "static"
     from sec_bas import load_module
@@ -440,7 +461,7 @@ if __name__ == "__main__":
         sys.exit()
     else:
         os.system("del check_venv") if os.name == "nt" else os.system("rm -rf check_venv")
-    
+
     from IHA089_Mail.MailServerIHA089 import MailServerIHA089
     from IHA089_Mail.smtp_server import run_server
 
@@ -453,7 +474,7 @@ if __name__ == "__main__":
 
     if check_internet_connection():
         print()
-        get_lab_info()
+        #get_lab_info()
 
     start_smtp_process()
     mail_enabled = True
