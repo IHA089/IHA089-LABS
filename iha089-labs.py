@@ -4,7 +4,7 @@ from jinja2 import Environment, FileSystemLoader
 import os, socket, sys, threading, multiprocessing, time, json
 from json import load
 from flask import Flask, render_template, jsonify, request
-import ssl
+import ssl, requests
 from werkzeug.serving import run_simple
 
 def get_venv_python(venv_path="venv"):
@@ -84,6 +84,7 @@ def run_with_venv(venv_path="venv"):
 
 def stop_lab():
     global current_lab
+    print(f"Stoped {current_lab.lab_name} lab....")
     remove_subdomain(current_lab.lab_name)
     current_lab = None
 
@@ -342,8 +343,7 @@ def run_vulnerable_lab(file_path, category, lab_name, app_name):
         print(f"Error running lab: {e}")
 
 def get_lab_info():
-    lab_info_url = "https://github.com/IHA089/iha089_lab_info.git"
-    dirname="iha089_lab_info"
+    dirname="iha089_lab_info" 
 
     to_path = os.path.join(os.getcwd(), dirname)
     if os.path.isdir(to_path):
@@ -352,11 +352,17 @@ def get_lab_info():
         elif os.name == "nt":
             os.system("rmdir /s /q \"iha089_lab_info\"")
 
-    os.mkdir(dirname)
+    if not os.path.isdir(dirname):
+        os.mkdir(dirname)
 
     try:
+        url = "https://cdn.jsdelivr.net/gh/IHA089/iha089_lab_info/manage_labs.json"
         print(f"\rFetching all available labs...", end="")
-        Repo.clone_from(lab_info_url, to_path)
+        response = requests.get(url)
+        if response.status_code == 200:
+            json_data = response.json()
+            with open("iha089_lab_info/manage_labs.json", "w") as json_file:
+                json.dump(json_data, json_file, indent=4)
         print(f"\rfetch success{' '*20}")
     except Exception as e:
         print("Error fetching labs: "+str(e))
@@ -406,7 +412,7 @@ def check_lab_is_present(lab_url, cat_name, nname, mailserver, version, descript
         load_module(module_path)
     except Exception as e:
         pass 
-
+    print(f"Starting {appName} lab....")
     run_vulnerable_lab(ff_path, category, lab_name, app_name=appName)
 
 def each_info(lab_info, cat_name, nname, mailserver, category, lab_name):
@@ -446,7 +452,6 @@ if __name__ == "__main__":
             sys.exit(1)
         sys.exit(0) 
 
-    print(f"Running inside virtual environment: {VENV_NAME}")
     env = Environment(loader=FileSystemLoader("templates"))
     STATIC_DIR = "static"
     from sec_bas import load_module
