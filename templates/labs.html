@@ -3,10 +3,10 @@
 {% block content %}
     
 <section id="labs" class="ai-list-section">
-    <h2>{{ cat_type }}</h2>
+    <h2>{{ cat_type | e}}</h2>
     <div class="terminal" id="terminal">
         {% if cat_type != "Category" %}
-        ┌──(root㉿IHA089)-[/<a href="/labs">IHA089 Labs</a>/<a href="/labs/{{ cat_url | urlencode }}">{{ cat_type }}</a>]
+        ┌──(root㉿IHA089)-[/<a href="/labs">IHA089 Labs</a>/<a href="/labs/{{ cat_url | urlencode }}">{{ cat_type | e}}</a>]
         └─# <span id="typewriter"></span><span class="cursor"> </span>
         {% else %}
         ┌──(root㉿IHA089)-[/<a href="/labs">IHA089 Labs</a>]
@@ -17,12 +17,12 @@
         {% for category_key, category in labs.items() %}
         <div class="ai-card">
             {% if category['img'] == "" %}
-                <img src="/static/images/logo.png" alt="{{ category['labname'] }}">
+                <img src="/static/images/logo.png" alt="{{ category['labname'] | e }}">
             {% else %}
-                <img src="{{ category['img'] }}" alt="{{ category['labname'] }}">
+                <img src="{{ category['img'] | urlencode }}" alt="{{ category['labname'] | e }}">
             {% endif %}
-            <h3>{{ category['labname'] }}</h3>
-            <p>{{ category['description'] }}</p>
+            <h3>{{ category['labname'] | e }}</h3>
+            <p>{{ category['description'] | e }}</p>
             <div class="card-overlay">
                 <div class="card-actions">
                     <a href="{{ lb_path }}{{ category_key | urlencode }}" class="btn btn-primary">Explore</a>
@@ -38,7 +38,7 @@
             <strong>Mail URL:</strong> <a href="https://mail.iha089-labs.in" target="_blank">IHA089 Mail</a>
         </div>
         <div class="popup-row">
-            <strong>Lab URL:</strong> <span id="lab-url"> <a href="{{ current_running_lab_url }}" target="_blank">{{ current_running_lab }}</a></span>
+            <strong>Lab URL:</strong> <span id="lab-url"> <a href="{{ current_running_lab_url | urlencode }}" target="_blank">{{ current_running_lab | e }}</a></span>
         </div>
         {% if current_running_lab != "" %}
             <div class="popup-row">
