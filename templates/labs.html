@@ -19,7 +19,7 @@
             {% if category['img'] == "" %}
                 <img src="/static/images/logo.png" alt="{{ category['labname'] | e }}">
             {% else %}
-                <img src="{{ category['img'] | urlencode }}" alt="{{ category['labname'] | e }}">
+                <img src="{{ category['img'] }}" alt="{{ category['labname'] | e }}">
             {% endif %}
             <h3>{{ category['labname'] | e }}</h3>
             <p>{{ category['description'] | e }}</p>
