@@ -14,12 +14,12 @@
         {% if labs['img'] == "" %}
             <img src="/static/images/logo.png" alt="{{ labs['labname'] | e }}">
         {% else %}
-            <img src="{{ labs['img'] | urlencode }}" alt="{{ labs['labname'] | e}}">
+            <img src="{{ labs['img']}}" alt="{{ labs['labname'] | e}}">
         {% endif %}
         <div class="lab-details">
             <p><span><strong>Author: </strong>{{ labs['authorname'] | e }}</span></p>
-            <p><span><strong>Github Profile: </strong><a href="{{ labs['github_profile'] | urlencode }}" target="_blank">{{ labs['github_profile'] | e }}</a></span></p>
-            <p><strong>Blog URL: </strong><a href="{{ labs['blogurl'] | urlencode }}"target="_blank">{{ labs['blogurl'] | e }}</a></p>
+            <p><span><strong>Github Profile: </strong><a href="{{ labs['github_profile'] }}" target="_blank">{{ labs['github_profile'] | e }}</a></span></p>
+            <p><strong>Blog URL: </strong><a href="{{ labs['blogurl'] }}"target="_blank">{{ labs['blogurl'] | e }}</a></p>
         </div>
         <div class="lab-actions">
             {% if current_running_lab == "" %}
@@ -48,7 +48,7 @@
             <strong>Mail URL:</strong> <a href="https://mail.iha089-labs.in" target="_blank">IHA089 Mail</a>
         </div>
         <div class="popup-row">
-            <strong>Lab URL:</strong> <span id="lab-url"> <a href="{{ current_running_lab_url | urlencode }}" target="_blank">{{ current_running_lab | e }}</a></span>
+            <strong>Lab URL:</strong> <span id="lab-url"> <a href="{{ current_running_lab_url }}" target="_blank">{{ current_running_lab | e }}</a></span>
         </div>
         {% if current_running_lab != "" and current_running_lab != labs['labname'].replace(" ", "") %}
             <div class="popup-row">
