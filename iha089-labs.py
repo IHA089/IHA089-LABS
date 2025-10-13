@@ -368,12 +368,12 @@ def get_lab_info():
         print("Error fetching labs: "+str(e))
 
 def check_for_cat_path(cat_name):
-    lab_path = os.path.join(os.getcwd(), cat_name)
+    lab_path = os.path.join(os.getcwd(), "Labs", cat_name)
     if not os.path.isdir(lab_path):
         os.mkdir(lab_path)
 
 def check_lab_is_present(lab_url, cat_name, nname, mailserver, version, description, blog_url, category, lab_name, adf="Fetching"):
-    lab_path = os.path.join(os.getcwd(), cat_name, lab_url)
+    lab_path = os.path.join(os.getcwd(), "Labs", cat_name, lab_url)
     check_for_cat_path(cat_name)
     if not os.path.isdir(lab_path):
         os.mkdir(lab_path)
