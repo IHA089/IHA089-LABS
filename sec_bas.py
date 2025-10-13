@@ -79,11 +79,15 @@ def load_module(module_file_path):
         if not success:
             sys.exit(1)
 
+def create_lab_dir():
+    if not os.path.isdir("Labs"):
+        os.mkdir("Labs")
+        
 def get_mail_server():
     url = "https://github.com/IHA089/IHA089-Mail.git"
     dirname = "IHA089_Mail"
     dir_path = os.getcwd()+'/'+dirname
-
+    create_lab_dir()
     if not os.path.isdir(dir_path):
         os.mkdir(dir_path)
         try:
