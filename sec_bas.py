@@ -30,7 +30,6 @@ def create_and_activate_venv(venv_path):
 
 
 def is_module_installed(module_name, python_path):
-    """Check if module is already installed in the venv."""
     try:
         subprocess.check_call(
             [python_path, "-m", "pip", "show", module_name],
