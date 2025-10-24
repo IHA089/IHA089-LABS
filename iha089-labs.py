@@ -440,7 +440,45 @@ def start_smtp_process():
 def is_running_in_venv(venv_name="IHA089_Labs_venv"):
     return (sys.prefix != sys.base_prefix) and (venv_name in sys.prefix)
 
+def update_iha089_labs(repo_dir: str = "."):
+    print("Checking for updates...")
 
+    if not os.path.exists(os.path.join(repo_dir, ".git")):
+        print("This directory is not a Git repository.")
+        return False
+
+    try:
+        repo = Repo(repo_dir)
+        origin = repo.remotes.origin
+
+        origin.fetch()
+
+        local_commit = repo.head.commit.hexsha
+        remote_commit = origin.refs.main.commit.hexsha  
+        if local_commit != remote_commit:
+            print("Update found! Pulling changes...")
+
+            repo.git.stash('save', '--include-untracked', 'Auto-stash before update')
+
+            origin.pull('main')
+
+            try:
+                repo.git.stash('pop')
+            except GitCommandError:
+                pass
+
+            print("Update completed successfully!")
+            return True
+        else:
+            print("Already up to date.")
+            return False
+
+    except GitCommandError as e:
+        print(f"Git error during update: {e}")
+        return False
+    except Exception as e:
+        print(f"Unexpected error: {e}")
+        return False
 
 if __name__ == "__main__":
     VENV_NAME = "IHA089_Labs_venv"
@@ -467,6 +505,14 @@ if __name__ == "__main__":
         sys.exit()
     else:
         os.system("del check_venv") if os.name == "nt" else os.system("rm -rf check_venv")
+
+    i="──"*10
+    print(i, "IHA089 LABS", i)
+    lab_path01= os.path.join(os.getcwd())
+    update_iha089_labs(lab_path01)
+    print(i, "IHA089 MAIL", i)
+    mail_path01 = os.path.join(os.getcwd(), "IHA089_Mail")
+    update_iha089_labs(mail_path01)
 
     from IHA089_Mail.MailServerIHA089 import MailServerIHA089
     from IHA089_Mail.smtp_server import run_server
