@@ -6,6 +6,25 @@ from json import load
 from flask import Flask, render_template, jsonify, request
 import ssl, requests
 from werkzeug.serving import run_simple
+from werkzeug.serving import WSGIRequestHandler
+
+class MuteWSGIRequestHandler(WSGIRequestHandler):
+
+    def handle_error(self, request, client_address):
+
+        type, value, tb = sys.exc_info()
+        
+        if isinstance(value, (ConnectionResetError, ssl.SSLError)):
+            pass
+        else:
+            super().handle_error(request, client_address)
+
+    def log_exception(self, type, value, tb):
+
+        if isinstance(value, (ConnectionResetError, ssl.SSLError)):
+            pass
+        else:
+            super().log_exception(type, value, tb)
 
 def get_venv_python(venv_path="venv"):
     if not os.path.exists(venv_path):
@@ -509,10 +528,10 @@ if __name__ == "__main__":
     i="──"*10
     print(i, "IHA089 LABS", i)
     lab_path01= os.path.join(os.getcwd())
-    update_iha089_labs(lab_path01)
+    #update_iha089_labs(lab_path01)
     print(i, "IHA089 MAIL", i)
     mail_path01 = os.path.join(os.getcwd(), "IHA089_Mail")
-    update_iha089_labs(mail_path01)
+    #update_iha089_labs(mail_path01)
 
     from IHA089_Mail.MailServerIHA089 import MailServerIHA089
     from IHA089_Mail.smtp_server import run_server
@@ -526,7 +545,7 @@ if __name__ == "__main__":
 
     if check_internet_connection():
         print()
-        get_lab_info()
+        #get_lab_info()
 
     start_smtp_process()
     mail_enabled = True
@@ -535,4 +554,4 @@ if __name__ == "__main__":
     context.load_cert_chain(certfile="iha089-labs.crt", keyfile="iha089-labs.key")
 
     print("Access URL::: https://iha089-labs.in")
-    run_simple("127.0.0.1", 443, application, ssl_context=context)
+    run_simple("127.0.0.1", 443, application, ssl_context=context, request_handler=MuteWSGIRequestHandler)
