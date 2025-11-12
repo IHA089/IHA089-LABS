@@ -525,14 +525,6 @@ if __name__ == "__main__":
     else:
         os.system("del check_venv") if os.name == "nt" else os.system("rm -rf check_venv")
 
-    i="──"*10
-    print(i, "IHA089 LABS", i)
-    lab_path01= os.path.join(os.getcwd())
-    #update_iha089_labs(lab_path01)
-    print(i, "IHA089 MAIL", i)
-    mail_path01 = os.path.join(os.getcwd(), "IHA089_Mail")
-    #update_iha089_labs(mail_path01)
-
     from IHA089_Mail.MailServerIHA089 import MailServerIHA089
     from IHA089_Mail.smtp_server import run_server
 
@@ -544,8 +536,7 @@ if __name__ == "__main__":
         update_host_file()
 
     if check_internet_connection():
-        print()
-        #get_lab_info()
+        get_lab_info()
 
     start_smtp_process()
     mail_enabled = True
